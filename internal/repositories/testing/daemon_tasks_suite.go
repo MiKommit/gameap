@@ -36,6 +36,7 @@ func (s *DaemonTaskRepositorySuite) TestDaemonTaskRepositorySave() {
 	ctx := context.Background()
 
 	s.T().Run("insert_new_task", func(t *testing.T) {
+		// ARRANGE
 		task := &domain.DaemonTask{
 			DedicatedServerID: 1,
 			ServerID:          lo.ToPtr(uint(10)),
@@ -46,11 +47,31 @@ func (s *DaemonTaskRepositorySuite) TestDaemonTaskRepositorySave() {
 			Status:            domain.DaemonTaskStatusWaiting,
 		}
 
+		// ACT
 		err := s.repo.Save(ctx, task)
+
+		// ASSERT
 		require.NoError(t, err)
 		assert.NotZero(t, task.ID)
 		assert.NotNil(t, task.CreatedAt)
 		assert.NotNil(t, task.UpdatedAt)
+
+		find, err := s.repo.FindWithOutput(ctx, filters.FindDaemonTaskByIDs(task.ID), nil, nil)
+		require.NoError(t, err)
+
+		require.Len(t, find, 1)
+		savedTask := find[0]
+		assert.Equal(t, task.ID, savedTask.ID)
+		assert.Equal(t, task.RunAftID, savedTask.RunAftID)
+		assert.InDelta(t, task.CreatedAt.Unix(), savedTask.CreatedAt.Unix(), 1.0)
+		assert.InDelta(t, task.UpdatedAt.Unix(), savedTask.UpdatedAt.Unix(), 1.0)
+		assert.Equal(t, task.DedicatedServerID, savedTask.DedicatedServerID)
+		assert.Equal(t, task.ServerID, savedTask.ServerID)
+		assert.Equal(t, task.Task, savedTask.Task)
+		assert.Equal(t, task.Data, savedTask.Data)
+		assert.Equal(t, task.Cmd, savedTask.Cmd)
+		assert.Equal(t, task.Output, savedTask.Output)
+		assert.Equal(t, task.Status, savedTask.Status)
 	})
 
 	s.T().Run("update_existing_task", func(t *testing.T) {
@@ -84,6 +105,68 @@ func (s *DaemonTaskRepositorySuite) TestDaemonTaskRepositorySave() {
 		assert.Equal(t, domain.DaemonTaskStatusSuccess, task.Status)
 		assert.Equal(t, "updated output", *task.Output)
 		assert.Equal(t, "updated data", *task.Data)
+	})
+
+	s.T().Run("update_existing_task_without_output", func(t *testing.T) {
+		// ARRANGE
+		task := &domain.DaemonTask{
+			DedicatedServerID: 2,
+			ServerID:          lo.ToPtr(uint(20)),
+			Task:              domain.DaemonTaskTypeServerStop,
+			Data:              lo.ToPtr("original data"),
+			Cmd:               lo.ToPtr("stop command"),
+			Output:            lo.ToPtr("original output"),
+			Status:            domain.DaemonTaskStatusWaiting,
+		}
+
+		err := s.repo.Save(ctx, task)
+		require.NoError(t, err)
+		originalID := task.ID
+		originalCreatedAt := task.CreatedAt
+		originalUpdatedAt := task.UpdatedAt
+
+		time.Sleep(10 * time.Millisecond)
+
+		taskToUpdate := &domain.DaemonTask{
+			ID:                originalID,
+			RunAftID:          task.RunAftID,
+			CreatedAt:         originalCreatedAt,
+			UpdatedAt:         originalUpdatedAt,
+			DedicatedServerID: task.DedicatedServerID,
+			ServerID:          task.ServerID,
+			Task:              task.Task,
+			Data:              lo.ToPtr("updated data"),
+			Cmd:               task.Cmd,
+			Output:            nil, // Simulate not updating the output\
+			Status:            domain.DaemonTaskStatusSuccess,
+		}
+
+		// ACT
+		err = s.repo.Save(ctx, taskToUpdate)
+
+		// ASSERT
+		require.NoError(t, err)
+		assert.Equal(t, originalID, taskToUpdate.ID)
+		assert.InDelta(t, originalCreatedAt.Unix(), taskToUpdate.CreatedAt.Unix(), 1.0)
+		assert.True(t, taskToUpdate.UpdatedAt.After(*originalUpdatedAt) || taskToUpdate.UpdatedAt.Equal(*originalUpdatedAt))
+		assert.Equal(t, domain.DaemonTaskStatusSuccess, taskToUpdate.Status)
+
+		find, err := s.repo.FindWithOutput(ctx, filters.FindDaemonTaskByIDs(task.ID), nil, nil)
+		require.NoError(t, err)
+
+		require.Len(t, find, 1)
+		updatedTask := find[0]
+		assert.Equal(t, taskToUpdate.ID, updatedTask.ID)
+		assert.Equal(t, taskToUpdate.RunAftID, updatedTask.RunAftID)
+		assert.InDelta(t, taskToUpdate.CreatedAt.Unix(), updatedTask.CreatedAt.Unix(), 1.0)
+		assert.InDelta(t, taskToUpdate.UpdatedAt.Unix(), updatedTask.UpdatedAt.Unix(), 1.0)
+		assert.Equal(t, taskToUpdate.DedicatedServerID, updatedTask.DedicatedServerID)
+		assert.Equal(t, taskToUpdate.ServerID, updatedTask.ServerID)
+		assert.Equal(t, taskToUpdate.Task, updatedTask.Task)
+		assert.Equal(t, taskToUpdate.Data, updatedTask.Data)
+		assert.Equal(t, taskToUpdate.Cmd, updatedTask.Cmd)
+		assert.Equal(t, task.Output, updatedTask.Output)
+		assert.Equal(t, taskToUpdate.Status, updatedTask.Status)
 	})
 
 	s.T().Run("insert_task_with_nil_server_id", func(t *testing.T) {

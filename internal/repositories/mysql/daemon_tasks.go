@@ -143,6 +143,11 @@ func (r *DaemonTaskRepository) Save(ctx context.Context, task *domain.DaemonTask
 		task.CreatedAt = lo.ToPtr(time.Now())
 	}
 
+	outputUpdate := "output=VALUES(output)"
+	if task.ID != 0 && task.Output == nil {
+		outputUpdate = "output=output"
+	}
+
 	query, args, err := sq.Insert(base.DaemonTasksTable).
 		Columns(base.DaemonTaskFields...).
 		Values(
@@ -167,7 +172,7 @@ func (r *DaemonTaskRepository) Save(ctx context.Context, task *domain.DaemonTask
 			"task=VALUES(task)," +
 			"data=VALUES(data)," +
 			"cmd=VALUES(cmd)," +
-			"output=VALUES(output)," +
+			outputUpdate + "," +
 			"status=VALUES(status)").
 		PlaceholderFormat(sq.Question).
 		ToSql()

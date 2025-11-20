@@ -175,7 +175,7 @@ func (r *DaemonTaskRepository) Save(ctx context.Context, task *domain.DaemonTask
 			"task=excluded.task," +
 			"data=excluded.data," +
 			"cmd=excluded.cmd," +
-			"output=excluded.output," +
+			"output=COALESCE(excluded.output, " + base.DaemonTasksTable + ".output)," +
 			"status=excluded.status " +
 			"RETURNING id").
 		ToSql()

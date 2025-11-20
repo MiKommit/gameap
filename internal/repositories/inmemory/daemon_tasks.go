@@ -97,12 +97,21 @@ func (r *DaemonTaskRepository) Save(_ context.Context, task *domain.DaemonTask) 
 		task.CreatedAt = lo.ToPtr(time.Now())
 	}
 
+	var preservedOutput *string
 	if task.ID != 0 {
 		if oldTask, exists := r.tasks[task.ID]; exists {
 			r.removeFromIndexes(oldTask)
+			if task.Output == nil {
+				preservedOutput = oldTask.Output
+			}
 		}
 	} else {
 		task.ID = uint(atomic.AddUint32(&r.nextID, 1))
+	}
+
+	output := task.Output
+	if preservedOutput != nil {
+		output = preservedOutput
 	}
 
 	r.tasks[task.ID] = &domain.DaemonTask{
@@ -115,7 +124,7 @@ func (r *DaemonTaskRepository) Save(_ context.Context, task *domain.DaemonTask) 
 		Task:              task.Task,
 		Data:              task.Data,
 		Cmd:               task.Cmd,
-		Output:            task.Output,
+		Output:            output,
 		Status:            task.Status,
 	}
 
