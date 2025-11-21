@@ -18,7 +18,10 @@ type PASETOService struct {
 func NewPASETOService(secretKey []byte) (*PASETOService, error) {
 	// Append to 32 bytes if the key is shorter
 	if len(secretKey) < 32 {
-		slog.Warn("Auth secret key is shorter than 32 bytes, appending '0' to the key")
+		slog.Warn(
+			"Auth secret key is shorter than 32 bytes, appending '0' to the key",
+			slog.Int("length", len(secretKey)),
+		)
 
 		for len(secretKey) < 32 {
 			secretKey = append(secretKey, '0')
@@ -27,7 +30,10 @@ func NewPASETOService(secretKey []byte) (*PASETOService, error) {
 
 	// Trim to 32 bytes if the key is longer
 	if len(secretKey) > 32 {
-		slog.Warn("Auth secret key is longer than 32 bytes, trimming the key to 32 bytes")
+		slog.Warn(
+			"Auth secret key is longer than 32 bytes, trimming the key to 32 bytes",
+			slog.Int("length", len(secretKey)),
+		)
 
 		secretKey = secretKey[:32]
 	}

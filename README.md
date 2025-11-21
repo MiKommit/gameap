@@ -23,7 +23,7 @@ You can run the panel on different operating systems and database backends.
 
 GameAP can be installed on the following operating systems:
 - Linux (Ubuntu, Debian, CentOS, etc.)
-- Windows Server (2016, 2019, 2022), Windows 10, Windows 11
+- Windows Server (2016, 2019, 2022, 2025), Windows 10, Windows 11
 - MacOS
 
 ### Database
@@ -33,6 +33,28 @@ GameAP supports the following databases:
 - MySQL / MariaDB
 - SQLite
 - Inmemory (for testing purposes only). Not persistent, data will be lost on restart.
+
+## Quick Start with Docker
+
+The fastest way to get started with GameAP is using Docker:
+
+```bash
+# Using Docker Compose (recommended)
+docker-compose up -d
+
+# Or pull and run the pre-built image
+docker pull gameap/gameap:latest
+docker run -d -p 8025:8025 \
+  -e DATABASE_DRIVER=sqlite \
+  -e DATABASE_URL=file:/db.sqlite \
+  -e ENCRYPTION_KEY=your-secret-key \
+  -e AUTH_SECRET=your-auth-secret \
+  gameap/gameap:latest
+```
+
+Access GameAP at http://localhost:8025
+
+For detailed Docker deployment instructions, see [DOCKER.md](DOCKER.md).
 
 ## Configuration
 
