@@ -203,11 +203,15 @@ func (c *PooledConn) Write(b []byte) (n int, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if c.r == nil || c.r.Value() == nil {
+	if c.r == nil {
 		return 0, errors.New("connection not established")
 	}
 
 	err = Retry(retryAttempts, retryDelay, func() error {
+		if c.r == nil {
+			return errors.New("connection not established")
+		}
+
 		n, err = c.r.Value().Write(b)
 		if err != nil {
 			slog.Debug(
@@ -216,6 +220,7 @@ func (c *PooledConn) Write(b []byte) (n int, err error) {
 			)
 
 			c.r.Destroy()
+			c.r = nil
 
 			var acqErr error
 			c.r, acqErr = c.p.Acquire(c.ctx)

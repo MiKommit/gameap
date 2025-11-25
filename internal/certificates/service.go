@@ -10,6 +10,7 @@ import (
 	"encoding/hex"
 	"encoding/pem"
 	"math/big"
+	"os"
 	"time"
 
 	"github.com/gameap/gameap/internal/files"
@@ -17,10 +18,10 @@ import (
 )
 
 const (
-	RootCACert             = "certs/root.crt"
-	RootCAKey              = "certs/root.key"
-	ClientCertificatesPath = "certs/client"
-	ServerCertificatesPath = "certs/server"
+	RootCACert             = "certs" + string(os.PathSeparator) + "root.crt"
+	RootCAKey              = "certs" + string(os.PathSeparator) + "root.key"
+	ClientCertificatesPath = "certs" + string(os.PathSeparator) + "client"
+	ServerCertificatesPath = "certs" + string(os.PathSeparator) + "server"
 	PrivateKeyBits         = 2048
 	CertYears              = 10
 )

@@ -41,7 +41,7 @@ func (fm *LocalFileManager) Read(_ context.Context, path string) ([]byte, error)
 
 func (fm *LocalFileManager) Write(ctx context.Context, path string, data []byte) error {
 	if !fm.Exists(ctx, path) {
-		err := os.MkdirAll(filepath.Dir(path), defaultLocalDirPerm)
+		err := fm.mkdirAll(filepath.Dir(path))
 		if err != nil {
 			return errors.Wrapf(err, "failed to create directories: %s", filepath.Dir(path))
 		}
@@ -50,6 +50,31 @@ func (fm *LocalFileManager) Write(ctx context.Context, path string, data []byte)
 	err := fm.root.WriteFile(path, data, defaultLocalFilePerm)
 	if err != nil {
 		return errors.Wrap(err, "failed to write file")
+	}
+
+	return nil
+}
+
+func (fm *LocalFileManager) mkdirAll(path string) error {
+	if path == "" || path == "." {
+		return nil
+	}
+
+	_, err := fm.root.Stat(path)
+	if err == nil {
+		return nil
+	}
+
+	parent := filepath.Dir(path)
+	if parent != path && parent != "." {
+		if err := fm.mkdirAll(parent); err != nil {
+			return err
+		}
+	}
+
+	err = fm.root.Mkdir(path, defaultLocalDirPerm)
+	if err != nil && !os.IsExist(err) {
+		return err
 	}
 
 	return nil

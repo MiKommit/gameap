@@ -143,7 +143,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
 	fileInfoList, err := h.daemonFiles.ReadDir(ctx, node, fullPath)
 	if err != nil {
-		h.responder.WriteError(ctx, rw, errors.WithMessage(err, "failed to read directory"))
+		h.responder.WriteError(ctx, rw, errors.WithMessagef(err, "failed to read directory: %s", fullPath))
 
 		return
 	}
