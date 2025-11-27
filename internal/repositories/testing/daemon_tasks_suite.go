@@ -432,6 +432,167 @@ func (s *DaemonTaskRepositorySuite) TestDaemonTaskRepositoryFind() {
 			assert.GreaterOrEqual(t, results[i].ID, results[i+1].ID)
 		}
 	})
+
+	s.T().Run("find_by_dedicated_server_id_and_status", func(t *testing.T) {
+		filter := &filters.FindDaemonTask{
+			DedicatedServerIDs: []uint{10},
+			Statuses:           []domain.DaemonTaskStatus{domain.DaemonTaskStatusWaiting},
+		}
+
+		results, err := s.repo.Find(ctx, filter, nil, nil)
+		require.NoError(t, err)
+		require.Len(t, results, 1)
+		assert.Equal(t, uint(10), results[0].DedicatedServerID)
+		assert.Equal(t, domain.DaemonTaskStatusWaiting, results[0].Status)
+	})
+
+	s.T().Run("find_by_dedicated_server_id_and_task_type", func(t *testing.T) {
+		filter := &filters.FindDaemonTask{
+			DedicatedServerIDs: []uint{10},
+			Tasks:              []domain.DaemonTaskType{domain.DaemonTaskTypeServerRestart},
+		}
+
+		results, err := s.repo.Find(ctx, filter, nil, nil)
+		require.NoError(t, err)
+		require.Len(t, results, 1)
+		assert.Equal(t, uint(10), results[0].DedicatedServerID)
+		assert.Equal(t, domain.DaemonTaskTypeServerRestart, results[0].Task)
+	})
+
+	s.T().Run("find_by_status_and_task_type", func(t *testing.T) {
+		filter := &filters.FindDaemonTask{
+			Statuses: []domain.DaemonTaskStatus{domain.DaemonTaskStatusWaiting},
+			Tasks:    []domain.DaemonTaskType{domain.DaemonTaskTypeServerStart},
+		}
+
+		results, err := s.repo.Find(ctx, filter, nil, nil)
+		require.NoError(t, err)
+		require.GreaterOrEqual(t, len(results), 1)
+
+		for _, result := range results {
+			assert.Equal(t, domain.DaemonTaskStatusWaiting, result.Status)
+			assert.Equal(t, domain.DaemonTaskTypeServerStart, result.Task)
+		}
+	})
+
+	s.T().Run("find_by_ids_and_status", func(t *testing.T) {
+		filter := &filters.FindDaemonTask{
+			IDs:      []uint{task1.ID, task2.ID, task3.ID},
+			Statuses: []domain.DaemonTaskStatus{domain.DaemonTaskStatusWorking},
+		}
+
+		results, err := s.repo.Find(ctx, filter, nil, nil)
+		require.NoError(t, err)
+		require.Len(t, results, 1)
+		assert.Equal(t, task2.ID, results[0].ID)
+		assert.Equal(t, domain.DaemonTaskStatusWorking, results[0].Status)
+	})
+
+	s.T().Run("find_by_server_id_and_dedicated_server_id", func(t *testing.T) {
+		filter := &filters.FindDaemonTask{
+			ServerIDs:          []*uint{lo.ToPtr(uint(101))},
+			DedicatedServerIDs: []uint{10},
+		}
+
+		results, err := s.repo.Find(ctx, filter, nil, nil)
+		require.NoError(t, err)
+		require.Len(t, results, 1)
+		assert.Equal(t, task1.ID, results[0].ID)
+	})
+
+	s.T().Run("find_by_three_filters", func(t *testing.T) {
+		filter := &filters.FindDaemonTask{
+			DedicatedServerIDs: []uint{10},
+			Tasks:              []domain.DaemonTaskType{domain.DaemonTaskTypeServerStart},
+			Statuses:           []domain.DaemonTaskStatus{domain.DaemonTaskStatusWaiting},
+		}
+
+		results, err := s.repo.Find(ctx, filter, nil, nil)
+		require.NoError(t, err)
+		require.Len(t, results, 1)
+		assert.Equal(t, task1.ID, results[0].ID)
+		assert.Equal(t, uint(10), results[0].DedicatedServerID)
+		assert.Equal(t, domain.DaemonTaskTypeServerStart, results[0].Task)
+		assert.Equal(t, domain.DaemonTaskStatusWaiting, results[0].Status)
+	})
+
+	s.T().Run("find_by_all_filters", func(t *testing.T) {
+		filter := &filters.FindDaemonTask{
+			IDs:                []uint{task1.ID, task2.ID, task3.ID},
+			DedicatedServerIDs: []uint{10},
+			ServerIDs:          []*uint{lo.ToPtr(uint(101))},
+			Tasks:              []domain.DaemonTaskType{domain.DaemonTaskTypeServerStart},
+			Statuses:           []domain.DaemonTaskStatus{domain.DaemonTaskStatusWaiting},
+		}
+
+		results, err := s.repo.Find(ctx, filter, nil, nil)
+		require.NoError(t, err)
+		require.Len(t, results, 1)
+		assert.Equal(t, task1.ID, results[0].ID)
+	})
+
+	s.T().Run("find_by_multiple_filters_no_match", func(t *testing.T) {
+		filter := &filters.FindDaemonTask{
+			DedicatedServerIDs: []uint{10},
+			Statuses:           []domain.DaemonTaskStatus{domain.DaemonTaskStatusWorking},
+		}
+
+		results, err := s.repo.Find(ctx, filter, nil, nil)
+		require.NoError(t, err)
+		assert.Empty(t, results)
+	})
+
+	s.T().Run("find_by_multiple_values_in_single_filter_fields", func(t *testing.T) {
+		filter := &filters.FindDaemonTask{
+			DedicatedServerIDs: []uint{10, 20},
+			Statuses:           []domain.DaemonTaskStatus{domain.DaemonTaskStatusWaiting, domain.DaemonTaskStatusWorking},
+		}
+
+		results, err := s.repo.Find(ctx, filter, nil, nil)
+		require.NoError(t, err)
+		require.Len(t, results, 2)
+
+		ids := []uint{results[0].ID, results[1].ID}
+		assert.Contains(t, ids, task1.ID)
+		assert.Contains(t, ids, task2.ID)
+	})
+
+	s.T().Run("find_with_multiple_filters_and_pagination", func(t *testing.T) {
+		filter := &filters.FindDaemonTask{
+			DedicatedServerIDs: []uint{10, 20},
+			Statuses: []domain.DaemonTaskStatus{
+				domain.DaemonTaskStatusWaiting,
+				domain.DaemonTaskStatusWorking,
+				domain.DaemonTaskStatusSuccess,
+			},
+		}
+		pagination := &filters.Pagination{
+			Limit:  1,
+			Offset: 0,
+		}
+
+		results, err := s.repo.Find(ctx, filter, nil, pagination)
+		require.NoError(t, err)
+		require.Len(t, results, 1)
+	})
+
+	s.T().Run("find_with_multiple_filters_and_order", func(t *testing.T) {
+		filter := &filters.FindDaemonTask{
+			DedicatedServerIDs: []uint{10},
+			Statuses: []domain.DaemonTaskStatus{
+				domain.DaemonTaskStatusWaiting,
+				domain.DaemonTaskStatusSuccess,
+			},
+		}
+		order := []filters.Sorting{
+			{Field: "id", Direction: filters.SortDirectionDesc},
+		}
+
+		results, err := s.repo.Find(ctx, filter, order, nil)
+		require.NoError(t, err)
+		require.Len(t, results, 2)
+		assert.Greater(t, results[0].ID, results[1].ID)
+	})
 }
 
 func (s *DaemonTaskRepositorySuite) TestDaemonTaskRepositoryFindWithOutput() {
