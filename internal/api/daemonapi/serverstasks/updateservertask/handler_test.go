@@ -19,6 +19,52 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func makeTestNode(now time.Time) *domain.Node {
+	return &domain.Node{
+		ID:                  1,
+		Enabled:             true,
+		Name:                "test-node",
+		OS:                  "linux",
+		Location:            "Montenegro",
+		IPs:                 []string{"172.18.0.5"},
+		WorkPath:            "/srv/gameap",
+		GdaemonHost:         "172.18.0.5",
+		GdaemonPort:         31717,
+		GdaemonAPIKey:       "test-api-key",
+		GdaemonServerCert:   "certs/root.crt",
+		ClientCertificateID: 1,
+		PreferInstallMethod: "auto",
+		CreatedAt:           &now,
+		UpdatedAt:           &now,
+	}
+}
+
+func makeTestServer(now time.Time, dsID uint) *domain.Server {
+	return &domain.Server{
+		ID:         10,
+		Enabled:    true,
+		Installed:  domain.ServerInstalledStatusInstalled,
+		Name:       "Test Server",
+		UUID:       uuid.MustParse("550e8400-e29b-41d4-a716-446655440000"),
+		UUIDShort:  "550e8400",
+		GameID:     "rust",
+		DSID:       dsID,
+		ServerIP:   "172.18.0.5",
+		ServerPort: 27015,
+		Dir:        "/srv/gameap/servers/server1",
+		CreatedAt:  &now,
+		UpdatedAt:  &now,
+	}
+}
+
+func makeDaemonContext(node *domain.Node) context.Context {
+	daemonSession := &auth.DaemonSession{
+		Node: node,
+	}
+
+	return auth.ContextWithDaemonSession(context.Background(), daemonSession)
+}
+
 func TestHandler_ServeHTTP(t *testing.T) {
 	tests := []struct {
 		name               string
@@ -33,42 +79,8 @@ func TestHandler_ServeHTTP(t *testing.T) {
 			name: "successful server task update with all fields",
 			setupContext: func(taskRepo *inmemory.ServerTaskRepository, serverRepo *inmemory.ServerRepository) context.Context {
 				now := time.Now()
-				node := &domain.Node{
-					ID:                  1,
-					Enabled:             true,
-					Name:                "test-node",
-					OS:                  "linux",
-					Location:            "Montenegro",
-					IPs:                 []string{"172.18.0.5"},
-					WorkPath:            "/srv/gameap",
-					GdaemonHost:         "172.18.0.5",
-					GdaemonPort:         31717,
-					GdaemonAPIKey:       "test-api-key",
-					GdaemonServerCert:   "certs/root.crt",
-					ClientCertificateID: 1,
-					PreferInstallMethod: "auto",
-					CreatedAt:           &now,
-					UpdatedAt:           &now,
-				}
-
-				server := &domain.Server{
-					ID:               10,
-					Enabled:          true,
-					Installed:        domain.ServerInstalledStatusInstalled,
-					Blocked:          false,
-					Name:             "Test Server",
-					UUID:             uuid.MustParse("550e8400-e29b-41d4-a716-446655440000"),
-					UUIDShort:        "550e8400",
-					GameID:           "rust",
-					DSID:             1,
-					ServerIP:         "172.18.0.5",
-					ServerPort:       27015,
-					Dir:              "/srv/gameap/servers/server1",
-					ProcessActive:    false,
-					LastProcessCheck: &now,
-					CreatedAt:        &now,
-					UpdatedAt:        &now,
-				}
+				node := makeTestNode(now)
+				server := makeTestServer(now, 1)
 				require.NoError(t, serverRepo.Save(context.Background(), server))
 
 				executeDate := now.Add(24 * time.Hour)
@@ -85,11 +97,7 @@ func TestHandler_ServeHTTP(t *testing.T) {
 				}
 				require.NoError(t, taskRepo.Save(context.Background(), task))
 
-				daemonSession := &auth.DaemonSession{
-					Node: node,
-				}
-
-				return auth.ContextWithDaemonSession(context.Background(), daemonSession)
+				return makeDaemonContext(node)
 			},
 			taskID: "1",
 			requestBody: map[string]any{
@@ -115,39 +123,8 @@ func TestHandler_ServeHTTP(t *testing.T) {
 			name: "successful server task update with counter increment",
 			setupContext: func(taskRepo *inmemory.ServerTaskRepository, serverRepo *inmemory.ServerRepository) context.Context {
 				now := time.Now()
-				node := &domain.Node{
-					ID:                  1,
-					Enabled:             true,
-					Name:                "test-node",
-					OS:                  "linux",
-					Location:            "Montenegro",
-					IPs:                 []string{"172.18.0.5"},
-					WorkPath:            "/srv/gameap",
-					GdaemonHost:         "172.18.0.5",
-					GdaemonPort:         31717,
-					GdaemonAPIKey:       "test-api-key",
-					GdaemonServerCert:   "certs/root.crt",
-					ClientCertificateID: 1,
-					PreferInstallMethod: "auto",
-					CreatedAt:           &now,
-					UpdatedAt:           &now,
-				}
-
-				server := &domain.Server{
-					ID:         10,
-					Enabled:    true,
-					Installed:  domain.ServerInstalledStatusInstalled,
-					Name:       "Test Server",
-					UUID:       uuid.MustParse("550e8400-e29b-41d4-a716-446655440000"),
-					UUIDShort:  "550e8400",
-					GameID:     "rust",
-					DSID:       1,
-					ServerIP:   "172.18.0.5",
-					ServerPort: 27015,
-					Dir:        "/srv/gameap/servers/server1",
-					CreatedAt:  &now,
-					UpdatedAt:  &now,
-				}
+				node := makeTestNode(now)
+				server := makeTestServer(now, 1)
 				require.NoError(t, serverRepo.Save(context.Background(), server))
 
 				executeDate := now.Add(24 * time.Hour)
@@ -163,11 +140,7 @@ func TestHandler_ServeHTTP(t *testing.T) {
 				}
 				require.NoError(t, taskRepo.Save(context.Background(), task))
 
-				daemonSession := &auth.DaemonSession{
-					Node: node,
-				}
-
-				return auth.ContextWithDaemonSession(context.Background(), daemonSession)
+				return makeDaemonContext(node)
 			},
 			taskID: "1",
 			requestBody: map[string]any{
@@ -186,39 +159,8 @@ func TestHandler_ServeHTTP(t *testing.T) {
 			name: "successful_server_task_update_with_repeat_0",
 			setupContext: func(taskRepo *inmemory.ServerTaskRepository, serverRepo *inmemory.ServerRepository) context.Context {
 				now := time.Now()
-				node := &domain.Node{
-					ID:                  1,
-					Enabled:             true,
-					Name:                "test-node",
-					OS:                  "linux",
-					Location:            "Montenegro",
-					IPs:                 []string{"172.18.0.5"},
-					WorkPath:            "/srv/gameap",
-					GdaemonHost:         "172.18.0.5",
-					GdaemonPort:         31717,
-					GdaemonAPIKey:       "test-api-key",
-					GdaemonServerCert:   "certs/root.crt",
-					ClientCertificateID: 1,
-					PreferInstallMethod: "auto",
-					CreatedAt:           &now,
-					UpdatedAt:           &now,
-				}
-
-				server := &domain.Server{
-					ID:         10,
-					Enabled:    true,
-					Installed:  domain.ServerInstalledStatusInstalled,
-					Name:       "Test Server",
-					UUID:       uuid.MustParse("550e8400-e29b-41d4-a716-446655440000"),
-					UUIDShort:  "550e8400",
-					GameID:     "rust",
-					DSID:       1,
-					ServerIP:   "172.18.0.5",
-					ServerPort: 27015,
-					Dir:        "/srv/gameap/servers/server1",
-					CreatedAt:  &now,
-					UpdatedAt:  &now,
-				}
+				node := makeTestNode(now)
+				server := makeTestServer(now, 1)
 				require.NoError(t, serverRepo.Save(context.Background(), server))
 
 				executeDate := now.Add(24 * time.Hour)
@@ -234,11 +176,7 @@ func TestHandler_ServeHTTP(t *testing.T) {
 				}
 				require.NoError(t, taskRepo.Save(context.Background(), task))
 
-				daemonSession := &auth.DaemonSession{
-					Node: node,
-				}
-
-				return auth.ContextWithDaemonSession(context.Background(), daemonSession)
+				return makeDaemonContext(node)
 			},
 			taskID: "1",
 			requestBody: map[string]any{
@@ -259,39 +197,8 @@ func TestHandler_ServeHTTP(t *testing.T) {
 			name: "successful server task update with only required field",
 			setupContext: func(taskRepo *inmemory.ServerTaskRepository, serverRepo *inmemory.ServerRepository) context.Context {
 				now := time.Now()
-				node := &domain.Node{
-					ID:                  1,
-					Enabled:             true,
-					Name:                "test-node",
-					OS:                  "linux",
-					Location:            "Montenegro",
-					IPs:                 []string{"172.18.0.5"},
-					WorkPath:            "/srv/gameap",
-					GdaemonHost:         "172.18.0.5",
-					GdaemonPort:         31717,
-					GdaemonAPIKey:       "test-api-key",
-					GdaemonServerCert:   "certs/root.crt",
-					ClientCertificateID: 1,
-					PreferInstallMethod: "auto",
-					CreatedAt:           &now,
-					UpdatedAt:           &now,
-				}
-
-				server := &domain.Server{
-					ID:         10,
-					Enabled:    true,
-					Installed:  domain.ServerInstalledStatusInstalled,
-					Name:       "Test Server",
-					UUID:       uuid.MustParse("550e8400-e29b-41d4-a716-446655440000"),
-					UUIDShort:  "550e8400",
-					GameID:     "rust",
-					DSID:       1,
-					ServerIP:   "172.18.0.5",
-					ServerPort: 27015,
-					Dir:        "/srv/gameap/servers/server1",
-					CreatedAt:  &now,
-					UpdatedAt:  &now,
-				}
+				node := makeTestNode(now)
+				server := makeTestServer(now, 1)
 				require.NoError(t, serverRepo.Save(context.Background(), server))
 
 				executeDate := now.Add(24 * time.Hour)
@@ -307,11 +214,7 @@ func TestHandler_ServeHTTP(t *testing.T) {
 				}
 				require.NoError(t, taskRepo.Save(context.Background(), task))
 
-				daemonSession := &auth.DaemonSession{
-					Node: node,
-				}
-
-				return auth.ContextWithDaemonSession(context.Background(), daemonSession)
+				return makeDaemonContext(node)
 			},
 			taskID: "1",
 			requestBody: map[string]any{
@@ -332,29 +235,9 @@ func TestHandler_ServeHTTP(t *testing.T) {
 			name: "server task not found",
 			setupContext: func(_ *inmemory.ServerTaskRepository, _ *inmemory.ServerRepository) context.Context {
 				now := time.Now()
-				node := &domain.Node{
-					ID:                  1,
-					Enabled:             true,
-					Name:                "test-node",
-					OS:                  "linux",
-					Location:            "Montenegro",
-					IPs:                 []string{"172.18.0.5"},
-					WorkPath:            "/srv/gameap",
-					GdaemonHost:         "172.18.0.5",
-					GdaemonPort:         31717,
-					GdaemonAPIKey:       "test-api-key",
-					GdaemonServerCert:   "certs/root.crt",
-					ClientCertificateID: 1,
-					PreferInstallMethod: "auto",
-					CreatedAt:           &now,
-					UpdatedAt:           &now,
-				}
+				node := makeTestNode(now)
 
-				daemonSession := &auth.DaemonSession{
-					Node: node,
-				}
-
-				return auth.ContextWithDaemonSession(context.Background(), daemonSession)
+				return makeDaemonContext(node)
 			},
 			taskID: "999",
 			requestBody: map[string]any{
@@ -367,39 +250,8 @@ func TestHandler_ServeHTTP(t *testing.T) {
 			name: "task belongs to different node",
 			setupContext: func(taskRepo *inmemory.ServerTaskRepository, serverRepo *inmemory.ServerRepository) context.Context {
 				now := time.Now()
-				node := &domain.Node{
-					ID:                  1,
-					Enabled:             true,
-					Name:                "test-node",
-					OS:                  "linux",
-					Location:            "Montenegro",
-					IPs:                 []string{"172.18.0.5"},
-					WorkPath:            "/srv/gameap",
-					GdaemonHost:         "172.18.0.5",
-					GdaemonPort:         31717,
-					GdaemonAPIKey:       "test-api-key",
-					GdaemonServerCert:   "certs/root.crt",
-					ClientCertificateID: 1,
-					PreferInstallMethod: "auto",
-					CreatedAt:           &now,
-					UpdatedAt:           &now,
-				}
-
-				server := &domain.Server{
-					ID:         10,
-					Enabled:    true,
-					Installed:  domain.ServerInstalledStatusInstalled,
-					Name:       "Test Server",
-					UUID:       uuid.MustParse("550e8400-e29b-41d4-a716-446655440000"),
-					UUIDShort:  "550e8400",
-					GameID:     "rust",
-					DSID:       2,
-					ServerIP:   "172.18.0.6",
-					ServerPort: 27015,
-					Dir:        "/srv/gameap/servers/server1",
-					CreatedAt:  &now,
-					UpdatedAt:  &now,
-				}
+				node := makeTestNode(now)
+				server := makeTestServer(now, 2)
 				require.NoError(t, serverRepo.Save(context.Background(), server))
 
 				executeDate := now.Add(24 * time.Hour)
@@ -415,11 +267,7 @@ func TestHandler_ServeHTTP(t *testing.T) {
 				}
 				require.NoError(t, taskRepo.Save(context.Background(), task))
 
-				daemonSession := &auth.DaemonSession{
-					Node: node,
-				}
-
-				return auth.ContextWithDaemonSession(context.Background(), daemonSession)
+				return makeDaemonContext(node)
 			},
 			taskID: "1",
 			requestBody: map[string]any{
@@ -460,29 +308,9 @@ func TestHandler_ServeHTTP(t *testing.T) {
 			name: "invalid task ID",
 			setupContext: func(_ *inmemory.ServerTaskRepository, _ *inmemory.ServerRepository) context.Context {
 				now := time.Now()
-				node := &domain.Node{
-					ID:                  1,
-					Enabled:             true,
-					Name:                "test-node",
-					OS:                  "linux",
-					Location:            "Montenegro",
-					IPs:                 []string{"172.18.0.5"},
-					WorkPath:            "/srv/gameap",
-					GdaemonHost:         "172.18.0.5",
-					GdaemonPort:         31717,
-					GdaemonAPIKey:       "test-api-key",
-					GdaemonServerCert:   "certs/root.crt",
-					ClientCertificateID: 1,
-					PreferInstallMethod: "auto",
-					CreatedAt:           &now,
-					UpdatedAt:           &now,
-				}
+				node := makeTestNode(now)
 
-				daemonSession := &auth.DaemonSession{
-					Node: node,
-				}
-
-				return auth.ContextWithDaemonSession(context.Background(), daemonSession)
+				return makeDaemonContext(node)
 			},
 			taskID: "invalid",
 			requestBody: map[string]any{
@@ -495,29 +323,9 @@ func TestHandler_ServeHTTP(t *testing.T) {
 			name: "invalid request body - malformed JSON",
 			setupContext: func(_ *inmemory.ServerTaskRepository, _ *inmemory.ServerRepository) context.Context {
 				now := time.Now()
-				node := &domain.Node{
-					ID:                  1,
-					Enabled:             true,
-					Name:                "test-node",
-					OS:                  "linux",
-					Location:            "Montenegro",
-					IPs:                 []string{"172.18.0.5"},
-					WorkPath:            "/srv/gameap",
-					GdaemonHost:         "172.18.0.5",
-					GdaemonPort:         31717,
-					GdaemonAPIKey:       "test-api-key",
-					GdaemonServerCert:   "certs/root.crt",
-					ClientCertificateID: 1,
-					PreferInstallMethod: "auto",
-					CreatedAt:           &now,
-					UpdatedAt:           &now,
-				}
+				node := makeTestNode(now)
 
-				daemonSession := &auth.DaemonSession{
-					Node: node,
-				}
-
-				return auth.ContextWithDaemonSession(context.Background(), daemonSession)
+				return makeDaemonContext(node)
 			},
 			taskID:         "1",
 			requestBody:    "invalid json",
@@ -528,39 +336,8 @@ func TestHandler_ServeHTTP(t *testing.T) {
 			name: "missing required field - execute_date",
 			setupContext: func(taskRepo *inmemory.ServerTaskRepository, serverRepo *inmemory.ServerRepository) context.Context {
 				now := time.Now()
-				node := &domain.Node{
-					ID:                  1,
-					Enabled:             true,
-					Name:                "test-node",
-					OS:                  "linux",
-					Location:            "Montenegro",
-					IPs:                 []string{"172.18.0.5"},
-					WorkPath:            "/srv/gameap",
-					GdaemonHost:         "172.18.0.5",
-					GdaemonPort:         31717,
-					GdaemonAPIKey:       "test-api-key",
-					GdaemonServerCert:   "certs/root.crt",
-					ClientCertificateID: 1,
-					PreferInstallMethod: "auto",
-					CreatedAt:           &now,
-					UpdatedAt:           &now,
-				}
-
-				server := &domain.Server{
-					ID:         10,
-					Enabled:    true,
-					Installed:  domain.ServerInstalledStatusInstalled,
-					Name:       "Test Server",
-					UUID:       uuid.MustParse("550e8400-e29b-41d4-a716-446655440000"),
-					UUIDShort:  "550e8400",
-					GameID:     "rust",
-					DSID:       1,
-					ServerIP:   "172.18.0.5",
-					ServerPort: 27015,
-					Dir:        "/srv/gameap/servers/server1",
-					CreatedAt:  &now,
-					UpdatedAt:  &now,
-				}
+				node := makeTestNode(now)
+				server := makeTestServer(now, 1)
 				require.NoError(t, serverRepo.Save(context.Background(), server))
 
 				executeDate := now.Add(24 * time.Hour)
@@ -576,11 +353,7 @@ func TestHandler_ServeHTTP(t *testing.T) {
 				}
 				require.NoError(t, taskRepo.Save(context.Background(), task))
 
-				daemonSession := &auth.DaemonSession{
-					Node: node,
-				}
-
-				return auth.ContextWithDaemonSession(context.Background(), daemonSession)
+				return makeDaemonContext(node)
 			},
 			taskID: "1",
 			requestBody: map[string]any{
@@ -590,42 +363,11 @@ func TestHandler_ServeHTTP(t *testing.T) {
 			wantError:      "execute_date is required",
 		},
 		{
-			name: "invalid repeat value - less than 1",
+			name: "invalid repeat value repeat must be non-negative",
 			setupContext: func(taskRepo *inmemory.ServerTaskRepository, serverRepo *inmemory.ServerRepository) context.Context {
 				now := time.Now()
-				node := &domain.Node{
-					ID:                  1,
-					Enabled:             true,
-					Name:                "test-node",
-					OS:                  "linux",
-					Location:            "Montenegro",
-					IPs:                 []string{"172.18.0.5"},
-					WorkPath:            "/srv/gameap",
-					GdaemonHost:         "172.18.0.5",
-					GdaemonPort:         31717,
-					GdaemonAPIKey:       "test-api-key",
-					GdaemonServerCert:   "certs/root.crt",
-					ClientCertificateID: 1,
-					PreferInstallMethod: "auto",
-					CreatedAt:           &now,
-					UpdatedAt:           &now,
-				}
-
-				server := &domain.Server{
-					ID:         10,
-					Enabled:    true,
-					Installed:  domain.ServerInstalledStatusInstalled,
-					Name:       "Test Server",
-					UUID:       uuid.MustParse("550e8400-e29b-41d4-a716-446655440000"),
-					UUIDShort:  "550e8400",
-					GameID:     "rust",
-					DSID:       1,
-					ServerIP:   "172.18.0.5",
-					ServerPort: 27015,
-					Dir:        "/srv/gameap/servers/server1",
-					CreatedAt:  &now,
-					UpdatedAt:  &now,
-				}
+				node := makeTestNode(now)
+				server := makeTestServer(now, 1)
 				require.NoError(t, serverRepo.Save(context.Background(), server))
 
 				executeDate := now.Add(24 * time.Hour)
@@ -641,57 +383,53 @@ func TestHandler_ServeHTTP(t *testing.T) {
 				}
 				require.NoError(t, taskRepo.Save(context.Background(), task))
 
-				daemonSession := &auth.DaemonSession{
-					Node: node,
-				}
-
-				return auth.ContextWithDaemonSession(context.Background(), daemonSession)
+				return makeDaemonContext(node)
 			},
 			taskID: "1",
 			requestBody: map[string]any{
 				"execute_date": time.Now().Add(24 * time.Hour).Format(time.RFC3339),
-				"repeat":       0,
+				"repeat":       -1,
 			},
 			expectedStatus: http.StatusBadRequest,
-			wantError:      "repeat must be at least 1",
+			wantError:      "repeat must be non-negative",
+		},
+		{
+			name: "invalid repeat value repeat bigger than uint8",
+			setupContext: func(taskRepo *inmemory.ServerTaskRepository, serverRepo *inmemory.ServerRepository) context.Context {
+				now := time.Now()
+				node := makeTestNode(now)
+				server := makeTestServer(now, 1)
+				require.NoError(t, serverRepo.Save(context.Background(), server))
+
+				executeDate := now.Add(24 * time.Hour)
+				task := &domain.ServerTask{
+					Command:      domain.ServerTaskCommandStart,
+					ServerID:     10,
+					Repeat:       0,
+					RepeatPeriod: 3600 * time.Second,
+					Counter:      0,
+					ExecuteDate:  executeDate,
+					CreatedAt:    &now,
+					UpdatedAt:    &now,
+				}
+				require.NoError(t, taskRepo.Save(context.Background(), task))
+
+				return makeDaemonContext(node)
+			},
+			taskID: "1",
+			requestBody: map[string]any{
+				"execute_date": time.Now().Add(24 * time.Hour).Format(time.RFC3339),
+				"repeat":       1000,
+			},
+			expectedStatus: http.StatusBadRequest,
+			wantError:      "repeat exceeds maximum value of 255",
 		},
 		{
 			name: "invalid repeat_period - negative value",
 			setupContext: func(taskRepo *inmemory.ServerTaskRepository, serverRepo *inmemory.ServerRepository) context.Context {
 				now := time.Now()
-				node := &domain.Node{
-					ID:                  1,
-					Enabled:             true,
-					Name:                "test-node",
-					OS:                  "linux",
-					Location:            "Montenegro",
-					IPs:                 []string{"172.18.0.5"},
-					WorkPath:            "/srv/gameap",
-					GdaemonHost:         "172.18.0.5",
-					GdaemonPort:         31717,
-					GdaemonAPIKey:       "test-api-key",
-					GdaemonServerCert:   "certs/root.crt",
-					ClientCertificateID: 1,
-					PreferInstallMethod: "auto",
-					CreatedAt:           &now,
-					UpdatedAt:           &now,
-				}
-
-				server := &domain.Server{
-					ID:         10,
-					Enabled:    true,
-					Installed:  domain.ServerInstalledStatusInstalled,
-					Name:       "Test Server",
-					UUID:       uuid.MustParse("550e8400-e29b-41d4-a716-446655440000"),
-					UUIDShort:  "550e8400",
-					GameID:     "rust",
-					DSID:       1,
-					ServerIP:   "172.18.0.5",
-					ServerPort: 27015,
-					Dir:        "/srv/gameap/servers/server1",
-					CreatedAt:  &now,
-					UpdatedAt:  &now,
-				}
+				node := makeTestNode(now)
+				server := makeTestServer(now, 1)
 				require.NoError(t, serverRepo.Save(context.Background(), server))
 
 				executeDate := now.Add(24 * time.Hour)
@@ -707,11 +445,7 @@ func TestHandler_ServeHTTP(t *testing.T) {
 				}
 				require.NoError(t, taskRepo.Save(context.Background(), task))
 
-				daemonSession := &auth.DaemonSession{
-					Node: node,
-				}
-
-				return auth.ContextWithDaemonSession(context.Background(), daemonSession)
+				return makeDaemonContext(node)
 			},
 			taskID: "1",
 			requestBody: map[string]any{
@@ -725,39 +459,8 @@ func TestHandler_ServeHTTP(t *testing.T) {
 			name: "successful_update_with_mysql_datetime_format",
 			setupContext: func(taskRepo *inmemory.ServerTaskRepository, serverRepo *inmemory.ServerRepository) context.Context {
 				now := time.Now()
-				node := &domain.Node{
-					ID:                  1,
-					Enabled:             true,
-					Name:                "test-node",
-					OS:                  "linux",
-					Location:            "Montenegro",
-					IPs:                 []string{"172.18.0.5"},
-					WorkPath:            "/srv/gameap",
-					GdaemonHost:         "172.18.0.5",
-					GdaemonPort:         31717,
-					GdaemonAPIKey:       "test-api-key",
-					GdaemonServerCert:   "certs/root.crt",
-					ClientCertificateID: 1,
-					PreferInstallMethod: "auto",
-					CreatedAt:           &now,
-					UpdatedAt:           &now,
-				}
-
-				server := &domain.Server{
-					ID:         10,
-					Enabled:    true,
-					Installed:  domain.ServerInstalledStatusInstalled,
-					Name:       "Test Server",
-					UUID:       uuid.MustParse("550e8400-e29b-41d4-a716-446655440000"),
-					UUIDShort:  "550e8400",
-					GameID:     "rust",
-					DSID:       1,
-					ServerIP:   "172.18.0.5",
-					ServerPort: 27015,
-					Dir:        "/srv/gameap/servers/server1",
-					CreatedAt:  &now,
-					UpdatedAt:  &now,
-				}
+				node := makeTestNode(now)
+				server := makeTestServer(now, 1)
 				require.NoError(t, serverRepo.Save(context.Background(), server))
 
 				executeDate := now.Add(24 * time.Hour)
@@ -773,11 +476,7 @@ func TestHandler_ServeHTTP(t *testing.T) {
 				}
 				require.NoError(t, taskRepo.Save(context.Background(), task))
 
-				daemonSession := &auth.DaemonSession{
-					Node: node,
-				}
-
-				return auth.ContextWithDaemonSession(context.Background(), daemonSession)
+				return makeDaemonContext(node)
 			},
 			taskID: "1",
 			requestBody: map[string]any{
@@ -798,39 +497,8 @@ func TestHandler_ServeHTTP(t *testing.T) {
 			name: "successful_update_with_iso8601_no_timezone",
 			setupContext: func(taskRepo *inmemory.ServerTaskRepository, serverRepo *inmemory.ServerRepository) context.Context {
 				now := time.Now()
-				node := &domain.Node{
-					ID:                  1,
-					Enabled:             true,
-					Name:                "test-node",
-					OS:                  "linux",
-					Location:            "Montenegro",
-					IPs:                 []string{"172.18.0.5"},
-					WorkPath:            "/srv/gameap",
-					GdaemonHost:         "172.18.0.5",
-					GdaemonPort:         31717,
-					GdaemonAPIKey:       "test-api-key",
-					GdaemonServerCert:   "certs/root.crt",
-					ClientCertificateID: 1,
-					PreferInstallMethod: "auto",
-					CreatedAt:           &now,
-					UpdatedAt:           &now,
-				}
-
-				server := &domain.Server{
-					ID:         10,
-					Enabled:    true,
-					Installed:  domain.ServerInstalledStatusInstalled,
-					Name:       "Test Server",
-					UUID:       uuid.MustParse("550e8400-e29b-41d4-a716-446655440000"),
-					UUIDShort:  "550e8400",
-					GameID:     "rust",
-					DSID:       1,
-					ServerIP:   "172.18.0.5",
-					ServerPort: 27015,
-					Dir:        "/srv/gameap/servers/server1",
-					CreatedAt:  &now,
-					UpdatedAt:  &now,
-				}
+				node := makeTestNode(now)
+				server := makeTestServer(now, 1)
 				require.NoError(t, serverRepo.Save(context.Background(), server))
 
 				executeDate := now.Add(24 * time.Hour)
@@ -846,11 +514,7 @@ func TestHandler_ServeHTTP(t *testing.T) {
 				}
 				require.NoError(t, taskRepo.Save(context.Background(), task))
 
-				daemonSession := &auth.DaemonSession{
-					Node: node,
-				}
-
-				return auth.ContextWithDaemonSession(context.Background(), daemonSession)
+				return makeDaemonContext(node)
 			},
 			taskID: "1",
 			requestBody: map[string]any{
@@ -925,39 +589,8 @@ func TestHandler_ResponseStructure(t *testing.T) {
 	handler := NewHandler(taskRepo, serverRepo, responder)
 
 	now := time.Now()
-	node := &domain.Node{
-		ID:                  1,
-		Enabled:             true,
-		Name:                "test-node",
-		OS:                  "linux",
-		Location:            "Montenegro",
-		IPs:                 []string{"172.18.0.5"},
-		WorkPath:            "/srv/gameap",
-		GdaemonHost:         "172.18.0.5",
-		GdaemonPort:         31717,
-		GdaemonAPIKey:       "test-api-key",
-		GdaemonServerCert:   "certs/root.crt",
-		ClientCertificateID: 1,
-		PreferInstallMethod: "auto",
-		CreatedAt:           &now,
-		UpdatedAt:           &now,
-	}
-
-	server := &domain.Server{
-		ID:         10,
-		Enabled:    true,
-		Installed:  domain.ServerInstalledStatusInstalled,
-		Name:       "Test Server",
-		UUID:       uuid.MustParse("550e8400-e29b-41d4-a716-446655440000"),
-		UUIDShort:  "550e8400",
-		GameID:     "rust",
-		DSID:       1,
-		ServerIP:   "172.18.0.5",
-		ServerPort: 27015,
-		Dir:        "/srv/gameap/servers/server1",
-		CreatedAt:  &now,
-		UpdatedAt:  &now,
-	}
+	node := makeTestNode(now)
+	server := makeTestServer(now, 1)
 	require.NoError(t, serverRepo.Save(context.Background(), server))
 
 	executeDate := time.Date(2025, 10, 17, 19, 59, 53, 0, time.UTC)
@@ -973,10 +606,7 @@ func TestHandler_ResponseStructure(t *testing.T) {
 	}
 	require.NoError(t, taskRepo.Save(context.Background(), task))
 
-	daemonSession := &auth.DaemonSession{
-		Node: node,
-	}
-	ctx := auth.ContextWithDaemonSession(context.Background(), daemonSession)
+	ctx := makeDaemonContext(node)
 
 	newExecuteDate := time.Date(2025, 10, 18, 12, 0, 0, 0, time.UTC)
 	requestBody := map[string]any{

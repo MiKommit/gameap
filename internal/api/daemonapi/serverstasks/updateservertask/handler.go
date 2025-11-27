@@ -3,6 +3,7 @@ package updateservertask
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"net/http"
 	"time"
 
@@ -142,7 +143,11 @@ func (h *Handler) updateTask(task *domain.ServerTask, input *updateServerTaskInp
 	}
 
 	if input.Repeat != nil {
-		task.Repeat = *input.Repeat
+		if *input.Repeat > math.MaxUint8 {
+			*input.Repeat = math.MaxUint8
+		}
+
+		task.Repeat = uint8(*input.Repeat) //nolint:gosec // input.Repeat is already validated
 	}
 
 	if input.RepeatPeriod != nil {
