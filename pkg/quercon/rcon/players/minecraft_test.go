@@ -18,16 +18,16 @@ func TestMinecraftPlayerManager_ParsePlayers(t *testing.T) {
 			name:  "multiple_players_online_with_uuids",
 			input: "There are 3 of a max of 20 players online: Steve (550e8400-e29b-41d4-a716-446655440000), Alex (6ba7b810-9dad-11d1-80b4-00c04fd430c8), Notch (6ba7b811-9dad-11d1-80b4-00c04fd430c8)",
 			expected: []Player{
-				{Name: "Steve", ID: "550e8400-e29b-41d4-a716-446655440000"},
-				{Name: "Alex", ID: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"},
-				{Name: "Notch", ID: "6ba7b811-9dad-11d1-80b4-00c04fd430c8"},
+				{Name: "Steve", ID: "550e8400-e29b-41d4-a716-446655440000", UniqID: "550e8400-e29b-41d4-a716-446655440000"},
+				{Name: "Alex", ID: "6ba7b810-9dad-11d1-80b4-00c04fd430c8", UniqID: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"},
+				{Name: "Notch", ID: "6ba7b811-9dad-11d1-80b4-00c04fd430c8", UniqID: "6ba7b811-9dad-11d1-80b4-00c04fd430c8"},
 			},
 		},
 		{
 			name:  "single_player_online_with_uuid",
 			input: "There are 1 of a max of 20 players online: Steve (550e8400-e29b-41d4-a716-446655440000)",
 			expected: []Player{
-				{Name: "Steve", ID: "550e8400-e29b-41d4-a716-446655440000"},
+				{Name: "Steve", ID: "550e8400-e29b-41d4-a716-446655440000", UniqID: "550e8400-e29b-41d4-a716-446655440000"},
 			},
 		},
 		{
@@ -39,17 +39,17 @@ func TestMinecraftPlayerManager_ParsePlayers(t *testing.T) {
 			name:  "player_with_special_characters_and_uuid",
 			input: "There are 2 of a max of 20 players online: _xX_Player_Xx_ (550e8400-e29b-41d4-a716-446655440001), Dream123 (550e8400-e29b-41d4-a716-446655440002)",
 			expected: []Player{
-				{Name: "_xX_Player_Xx_", ID: "550e8400-e29b-41d4-a716-446655440001"},
-				{Name: "Dream123", ID: "550e8400-e29b-41d4-a716-446655440002"},
+				{Name: "_xX_Player_Xx_", ID: "550e8400-e29b-41d4-a716-446655440001", UniqID: "550e8400-e29b-41d4-a716-446655440001"},
+				{Name: "Dream123", ID: "550e8400-e29b-41d4-a716-446655440002", UniqID: "550e8400-e29b-41d4-a716-446655440002"},
 			},
 		},
 		{
 			name:  "players_with_extra_spaces",
 			input: "There are 3 of a max of 20 players online:  Steve (550e8400-e29b-41d4-a716-446655440000) ,  Alex (6ba7b810-9dad-11d1-80b4-00c04fd430c8) , Notch (6ba7b811-9dad-11d1-80b4-00c04fd430c8) ",
 			expected: []Player{
-				{Name: "Steve", ID: "550e8400-e29b-41d4-a716-446655440000"},
-				{Name: "Alex", ID: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"},
-				{Name: "Notch", ID: "6ba7b811-9dad-11d1-80b4-00c04fd430c8"},
+				{Name: "Steve", ID: "550e8400-e29b-41d4-a716-446655440000", UniqID: "550e8400-e29b-41d4-a716-446655440000"},
+				{Name: "Alex", ID: "6ba7b810-9dad-11d1-80b4-00c04fd430c8", UniqID: "6ba7b810-9dad-11d1-80b4-00c04fd430c8"},
+				{Name: "Notch", ID: "6ba7b811-9dad-11d1-80b4-00c04fd430c8", UniqID: "6ba7b811-9dad-11d1-80b4-00c04fd430c8"},
 			},
 		},
 		{

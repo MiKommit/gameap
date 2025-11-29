@@ -215,7 +215,7 @@ func TestHandler_ServeHTTP(t *testing.T) {
 			expectedStatus:        http.StatusOK,
 			expectFeatures:        true,
 			expectedRcon:          false,
-			expectedPlayersManage: false,
+			expectedPlayersManage: true,
 		},
 		{
 			name:     "successful_features_retrieval__hl_game",
@@ -568,8 +568,8 @@ func TestNewFeaturesResponse(t *testing.T) {
 		},
 		{
 			name:                  "unsupported_engine_with_unsupported_game",
-			gameCode:              "minecraft",
-			engine:                "minecraft",
+			gameCode:              "rust",
+			engine:                "rust",
 			expectedRcon:          false,
 			expectedPlayersManage: false,
 		},
