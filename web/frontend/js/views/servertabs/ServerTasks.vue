@@ -168,7 +168,7 @@
     import _ from 'lodash';
     import { pluralize, trans } from '@/i18n/i18n'
     import GButton from "@/components/GButton.vue";
-    import { confirm } from "@/parts/dialogs";
+    import {confirm, errorNotification} from "@/parts/dialogs";
 
 
     const REPEAT_ENDLESSLY          = 0;
@@ -268,9 +268,7 @@
                         }).catch((e) => {
                             this.hideModal();
 
-                            _.has(e, 'response.data.message')
-                                ? gameap.alert(e.response.data.message)
-                                : gameap.alert(e);
+                            errorNotification(e);
                         });
                 } else {
                     this.$store.dispatch('servers/updateTask', {
@@ -281,9 +279,7 @@
                         }).catch((e) => {
                             this.hideModal();
 
-                            _.has(e, 'response.data.message')
-                                ? gameap.alert(e.response.data.message)
-                                : gameap.alert(e);
+                            errorNotification(e);
                         });
                 }
             },

@@ -2,26 +2,26 @@
   <GBreadcrumbs :items="breadcrumbs"></GBreadcrumbs>
 
   <InactiveServer v-if="!loading && !isServerEnabled" :server="server"></InactiveServer>
-  <n-tabs type="line" class="flex justify-between" :class="(!isServerEnabled) ? 'hidden': ''" animated>
+  <n-tabs v-else type="line" class="flex justify-between" :class="(!isServerEnabled) ? 'hidden': ''" animated>
     <n-tab-pane name="control">
       <template #tab>
         <i class="fas fa-play mr-1"></i>
         {{ trans('servers.control') }}
       </template>
 
-      <div class="flex flex-wrap mt-2">
+      <div class="md:flex md:flex-wrap mt-2" v-show="serverQueryOnline">
         <div class="md:w-full">
           <n-card
               class="mb-3"
           >
             <Loading v-if="loading"></Loading>
-            <ServerStatus v-if="!loading" :server-id="serverId"></ServerStatus>
+            <ServerStatus v-if="!loading" ref="serverStatusRef" :server-id="serverId"></ServerStatus>
           </n-card>
         </div>
       </div>
 
-      <div class="flex flex-wrap mt-2">
-        <div class="md:w-1/2 pr-8">
+      <div class="md:flex mt-2">
+        <div class="md:w-1/2 md:pr-8">
           <n-card
               :title="trans('servers.commands')"
               class="mb-3"
@@ -113,7 +113,7 @@
         </div>
       </div>
 
-      <div class="flex flex-wrap mt-2" v-if="serverStore.canReadConsole">
+      <div class="md:flex flex-wrap mt-2" v-if="serverStore.canReadConsole">
         <div class="md:w-full">
           <Loading v-if="loading"></Loading>
           <ServerConsole
@@ -137,7 +137,7 @@
 
       <div class="flex flex-wrap mt-2">
         <div class="md:w-full">
-          <div :class="'grid ' + (rconSupportedFeatures.playersManage ? 'grid-cols-2' : 'grid-cols-1')">
+          <div :class="'md:grid ' + (rconSupportedFeatures.playersManage ? 'md:grid-cols-2' : 'md:grid-cols-1')">
             <div v-if="rconSupportedFeatures.playersManage" class="pr-8">
               <n-card
                   :title="trans('rcon.players_manage')"
@@ -215,7 +215,7 @@
         {{ trans('servers.settings') }}
       </template>
 
-      <div class="flex flex-wrap mt-2">
+      <div class="md:flex md:flex-wrap mt-2">
         <div class="md:w-full">
           <n-card class="mb-3">
             <div>
@@ -317,6 +317,7 @@ onMounted(() => {
 });
 
 const isServerEnabled = ref(true)
+const serverStatusRef = ref(null)
 
 const privileges = computed(() => {
   return {
@@ -329,6 +330,10 @@ const privileges = computed(() => {
 
 const serverOnline = computed(() => {
   return Boolean(server.value?.online)
+})
+
+const serverQueryOnline = computed(() => {
+  return serverStatusRef.value?.status === 'online'
 })
 
 const rconTabPossible = computed(() => {

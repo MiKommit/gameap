@@ -16,7 +16,7 @@
 
             <div class="sm:flex-1">
               <div class="max-w-full">
-                <div class="pt-3 pb-5 content">
+                <div class="pt-3 pb-5 max-sm:pl-5 content">
                   <content-view></content-view>
 
                   <div v-if="!$route.name">
@@ -31,7 +31,7 @@
           <guest-navbar></guest-navbar>
 
           <div id="main-section" class="mt-16 mr-5 sm:flex">
-            <div class="sm:flex-1">
+            <div class="sm:flex-1 sm:mr-5">
               <div class="max-w-full">
                 <div class="pt-3 pb-5 content">
                   <content-view></content-view>

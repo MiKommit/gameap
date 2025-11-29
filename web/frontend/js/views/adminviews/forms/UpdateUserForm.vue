@@ -7,7 +7,7 @@
         :model="form"
         :rules="rules"
     >
-      <div class="flex flex-wrap mt-2 grid grid-cols-2 gap-8">
+      <div class="flex-wrap mt-2 md:grid md:grid-cols-2 gap-8">
         <div>
           <n-card
               :title="trans('users.user')"
@@ -90,7 +90,7 @@
         </div>
       </div>
 
-      <div class="flex flex-wrap mt-2">
+      <div class="flex-wrap md:grid mt-2">
         <div class="md:w-full">
           <n-card
               :title="trans('users.servers')"

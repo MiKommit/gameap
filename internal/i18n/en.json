@@ -358,7 +358,7 @@
     "migrate_success_msg": "Module migrated successfully",
     "install_success_msg": "Module installed successfully",
     "enable_success_msg": "Module enabled successfully",
-    "disable_success_msg": "Module enabled successfully",
+    "disable_success_msg": "Module disabled successfully",
     "remove_success_msg": "Module removed successfully"
   },
   "navbar": {
@@ -477,7 +477,7 @@
     "console": "Console",
     "enter_command": "Enter command",
     "not_installed_msg": "Server is not installed",
-    "installation_process_msg": "Server in installation process",
+    "installation_process_msg": "Server installation in progress",
     "disabled_msg": "Server is disabled",
     "blocked_msg": "Server is blocked",
     "offline_console_msg": "Server is offline. The data in the console is up to date at the moment of server stop.",

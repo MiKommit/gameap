@@ -17,63 +17,53 @@
 
             <div v-if="showHostname" class="md:w-1/3 pr-4 pl-4">
                 <div v-if="useJoinLink" class="inline">
-                    <a :href="items.joinlink">{{ items.hostname }}</a>
+                    <a :href="queryInfo.joinlink">{{ queryInfo.hostname }}</a>
                 </div>
 
-                <div v-else>{{ items.hostname }}</div>
+                <div v-else>{{ queryInfo.hostname }}</div>
             </div>
 
             <div v-if="showPlayersNum" class="md:w-1/4 pr-4 pl-4">
-                {{ trans('servers.query_players') }}: {{ items.players }}
+              {{ trans('servers.query_players') }}: {{ queryInfo.players }}
             </div>
 
             <div v-if="showMap" class="md:w-1/4 pr-4 pl-4">
-                {{ trans('servers.query_map') }}: {{ items.map }}
+              {{ trans('servers.query_map') }}: {{ queryInfo.map }}
             </div>
         </div>
     </div>
 </template>
 
-<script>
-    import axios from '../../config/axios'
-    import _ from 'lodash';
+<script setup>
+    import { ref, computed, onMounted } from 'vue';
+    import axios from '@/config/axios';
 
-    export default {
-        props: {
-            serverId: Number
-        },
-        data: function () {
-            return { items: null };
-        },
-        computed: {
-            status() {
-                if (! _.has(this.items, 'status')) {
-                    return 'unknown';
-                }
+    const props = defineProps({
+        serverId: Number
+    });
 
-                if (this.items.status === 'online') {
-                    return 'online';
-                } else {
-                    return 'offline';
-                }
-            },
-            showHostname() {
-                return _.has(this.items, 'hostname');
-            },
-            showPlayersNum() {
-                return _.has(this.items, 'players');
-            },
-            showMap() {
-                return _.has(this.items, 'map');
-            },
-            useJoinLink() {
-                return _.has(this.items, 'joinlink')
-                    && this.items.joinlink.length > 0;
-            }
-        },
-        mounted() {
-            axios.get('/api/servers/' + this.serverId + '/query')
-                .then(response => (this.items = response.data));
+    const queryInfo = ref(null);
+
+    const status = computed(() => {
+        if (!queryInfo.value?.status) {
+            return 'unknown';
         }
-    }
+        return queryInfo.value.status === 'online' ? 'online' : 'offline';
+    });
+
+    const showHostname = computed(() => 'hostname' in (queryInfo.value ?? {}));
+    const showPlayersNum = computed(() => 'players' in (queryInfo.value ?? {}));
+    const showMap = computed(() => 'map' in (queryInfo.value ?? {}));
+    const useJoinLink = computed(() =>
+        queryInfo.value?.joinlink && queryInfo.value.joinlink.length > 0
+    );
+
+    onMounted(() => {
+        axios.get('/api/servers/' + props.serverId + '/query')
+            .then(response => (queryInfo.value = response.data));
+    });
+
+    defineExpose({
+        status,
+    });
 </script>

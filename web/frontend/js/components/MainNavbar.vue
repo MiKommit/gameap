@@ -41,7 +41,7 @@
           </div>
         </div>
 
-        <div class="md:mr-4 gap-x-1.5 text-white hover:bg-stone-800 md:px-5 md:py-2 rounded" v-on:click="switchTheme()">
+        <div class="md:mr-4 gap-x-1.5 text-white hover:bg-stone-800 px-5 py-2 rounded" v-on:click="switchTheme()">
           <i v-if="currentTheme === 'dark'" class="fa-solid fa-sun px-2 w-full"></i>
           <i v-if="currentTheme === 'light'" class="fa-solid fa-moon px-2 w-full"></i>
         </div>
