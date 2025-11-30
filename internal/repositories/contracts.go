@@ -90,6 +90,8 @@ type ServerRepository interface {
 
 	Delete(ctx context.Context, id uint) error
 
+	SoftDelete(ctx context.Context, id uint) error
+
 	SetUserServers(ctx context.Context, userID uint, serverIDs []uint) error
 
 	Exists(ctx context.Context, filter *filters.FindServer) (bool, error)

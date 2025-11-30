@@ -88,7 +88,7 @@ func (s *ServerRepositorySuite) TestServerRepositorySave() {
 func (s *ServerRepositorySuite) TestServerRepositoryDelete() {
 	ctx := context.Background()
 
-	s.T().Run("soft_delete_server", func(t *testing.T) {
+	s.T().Run("delete_server", func(t *testing.T) {
 		server := &domain.Server{
 			UUID:       uuid.New(),
 			UUIDShort:  "deltest",
@@ -101,6 +101,47 @@ func (s *ServerRepositorySuite) TestServerRepositoryDelete() {
 
 		require.NoError(t, s.repo.Save(ctx, server))
 		err := s.repo.Delete(ctx, server.ID)
+		require.NoError(t, err)
+
+		filter := &filters.FindServer{IDs: []uint{server.ID}, WithDeleted: true}
+		results, err := s.repo.Find(ctx, filter, nil, nil)
+		require.NoError(t, err)
+		assert.Empty(t, results)
+	})
+}
+
+func (s *ServerRepositorySuite) TestServerRepositorySoftDelete() {
+	ctx := context.Background()
+
+	s.T().Run("soft_delete_server", func(t *testing.T) {
+		server := &domain.Server{
+			UUID:       uuid.New(),
+			UUIDShort:  "softdel",
+			Name:       "Soft Delete Test Server",
+			GameID:     "csgo",
+			DSID:       1,
+			ServerIP:   "127.0.0.1",
+			ServerPort: 27020,
+		}
+
+		require.NoError(t, s.repo.Save(ctx, server))
+		err := s.repo.SoftDelete(ctx, server.ID)
+		require.NoError(t, err)
+
+		filter := &filters.FindServer{IDs: []uint{server.ID}}
+		results, err := s.repo.Find(ctx, filter, nil, nil)
+		require.NoError(t, err)
+		assert.Empty(t, results)
+
+		filterWithDeleted := &filters.FindServer{IDs: []uint{server.ID}, WithDeleted: true}
+		resultsWithDeleted, err := s.repo.Find(ctx, filterWithDeleted, nil, nil)
+		require.NoError(t, err)
+		require.Len(t, resultsWithDeleted, 1)
+		assert.NotNil(t, resultsWithDeleted[0].DeletedAt)
+	})
+
+	s.T().Run("soft_delete_nonexistent_server", func(t *testing.T) {
+		err := s.repo.SoftDelete(ctx, 99999)
 		require.NoError(t, err)
 	})
 }

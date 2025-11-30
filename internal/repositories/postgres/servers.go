@@ -514,6 +514,24 @@ func (r *ServerRepository) Delete(ctx context.Context, id uint) error {
 	return nil
 }
 
+func (r *ServerRepository) SoftDelete(ctx context.Context, id uint) error {
+	query, args, err := sq.Update(base.ServersTable).
+		Set("deleted_at", time.Now()).
+		Where(sq.Eq{"id": id}).
+		PlaceholderFormat(sq.Dollar).
+		ToSql()
+	if err != nil {
+		return errors.WithMessage(err, "failed to build query")
+	}
+
+	_, err = r.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return errors.WithMessage(err, "failed to execute query")
+	}
+
+	return nil
+}
+
 func (r *ServerRepository) SetUserServers(ctx context.Context, userID uint, serverIDs []uint) error {
 	return r.tm.Do(ctx, func(ctx context.Context) error {
 		deleteQuery, deleteArgs, err := sq.Delete("server_user").

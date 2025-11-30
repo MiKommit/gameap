@@ -394,6 +394,18 @@ func (r *ServerRepository) Delete(_ context.Context, id uint) error {
 	return nil
 }
 
+func (r *ServerRepository) SoftDelete(_ context.Context, id uint) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if server, exists := r.servers[id]; exists {
+		now := time.Now()
+		server.DeletedAt = &now
+	}
+
+	return nil
+}
+
 func (r *ServerRepository) addToIndexes(server *domain.Server) {
 	// UUID index
 	if r.uuidIndex[server.UUID] == nil {
