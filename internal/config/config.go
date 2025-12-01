@@ -1,16 +1,27 @@
 package config
 
 import (
+	"crypto/tls"
 	"strings"
 
 	"github.com/caarlos0/env/v11"
 	"github.com/gameap/gameap/internal/application/defaults"
+	"github.com/gameap/gameap/internal/certificates"
 	"github.com/pkg/errors"
 )
 
 type Config struct {
-	HTTPHost string `env:"HTTP_HOST" envDefault:"0.0.0.0"`
-	HTTPPort uint16 `env:"HTTP_PORT" envDefault:"8025"`
+	HTTPHost  string `env:"HTTP_HOST" envDefault:"0.0.0.0"`
+	HTTPPort  uint16 `env:"HTTP_PORT" envDefault:"8025"`
+	HTTPSPort uint16 `env:"HTTPS_PORT" envDefault:"443"`
+
+	TLS struct {
+		CertFile   string `env:"TLS_CERT_FILE" envDefault:""`
+		KeyFile    string `env:"TLS_KEY_FILE" envDefault:""`
+		Cert       string `env:"TLS_CERT" envDefault:""`
+		Key        string `env:"TLS_KEY" envDefault:""`
+		ForceHTTPS bool   `env:"TLS_FORCE_HTTPS" envDefault:"false"`
+	}
 
 	DatabaseDriver string `env:"DATABASE_DRIVER,required" envDefault:"mysql"`
 	DatabaseURL    string `env:"DATABASE_URL,required,notEmpty"`
@@ -112,4 +123,30 @@ func normalizeConfigValues(cfg *Config) {
 	case "postgres", "postgresql", "pgx", "pg", "pgsql": //nolint:goconst,nolintlint
 		cfg.Cache.Driver = "postgres"
 	}
+}
+
+func (c *Config) TLSEnabled() bool {
+	return (c.TLS.CertFile != "" && c.TLS.KeyFile != "") ||
+		(c.TLS.Cert != "" && c.TLS.Key != "")
+}
+
+func (c *Config) LoadTLSCertificate() (*tls.Certificate, error) {
+	if c.TLS.CertFile != "" && c.TLS.KeyFile != "" {
+		cert, err := tls.LoadX509KeyPair(c.TLS.CertFile, c.TLS.KeyFile)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to load TLS certificate from files")
+		}
+
+		return &cert, nil
+	}
+
+	certPEM := certificates.DecodePossibleBase64(c.TLS.Cert)
+	keyPEM := certificates.DecodePossibleBase64(c.TLS.Key)
+
+	cert, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to load TLS certificate from content")
+	}
+
+	return &cert, nil
 }

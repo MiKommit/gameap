@@ -14,6 +14,7 @@ import (
 	trmcontext "github.com/avito-tech/go-transaction-manager/trm/v2/context"
 	"github.com/avito-tech/go-transaction-manager/trm/v2/manager"
 	internalapi "github.com/gameap/gameap/internal/api"
+	"github.com/gameap/gameap/internal/api/middlewares"
 	"github.com/gameap/gameap/internal/cache"
 	"github.com/gameap/gameap/internal/certificates"
 	"github.com/gameap/gameap/internal/config"
@@ -46,6 +47,12 @@ const (
 	cacheDriverInmemory = "inmemory"
 	cacheDriverMySQL    = "mysql"
 	cacheDriverRedis    = "redis"
+)
+
+const (
+	httpServerWriteTimeout = 15 * time.Second
+	httpServerReadTimeout  = 15 * time.Second
+	httpServerIdleTimeout  = 60 * time.Second
 )
 
 type Container struct {
@@ -88,8 +95,10 @@ type Container struct {
 	daemonCommands *daemon.CommandService
 
 	// HTTP
-	httpServer *http.Server
-	responder  *api.Responder
+	router      *http.ServeMux
+	httpServer  *http.Server
+	httpsServer *http.Server
+	responder   *api.Responder
 
 	// Shutdown
 	shotdownFuncs []func() error
@@ -302,15 +311,57 @@ func (c *Container) HTTPServer() *http.Server {
 }
 
 func (c *Container) createHTTPServer() *http.Server {
-	handler := internalapi.CreateRouter(c)
+	var handler http.Handler = c.Router()
+
+	if c.config.TLSEnabled() && c.config.TLS.ForceHTTPS {
+		handler = middlewares.HTTPSRedirectMiddleware(c.config.HTTPSPort)(handler)
+	}
 
 	return &http.Server{
 		Addr:         c.config.HTTPHost + ":" + strconv.Itoa(int(c.config.HTTPPort)),
 		Handler:      handler,
-		WriteTimeout: time.Second * 15,
-		ReadTimeout:  time.Second * 15,
-		IdleTimeout:  time.Second * 60,
+		WriteTimeout: httpServerWriteTimeout,
+		ReadTimeout:  httpServerReadTimeout,
+		IdleTimeout:  httpServerIdleTimeout,
 	}
+}
+
+func (c *Container) HTTPSServer() *http.Server {
+	if c.httpsServer == nil {
+		c.httpsServer = c.createHTTPSServer()
+
+		c.appendShutdownFunc(func() error {
+			err := c.httpsServer.Shutdown(c.context)
+
+			if err == nil {
+				slog.InfoContext(c.context, "https server shutdown succeeded")
+			}
+
+			return err
+		})
+	}
+
+	return c.httpsServer
+}
+
+func (c *Container) createHTTPSServer() *http.Server {
+	handler := c.Router()
+
+	return &http.Server{
+		Addr:         c.config.HTTPHost + ":" + strconv.Itoa(int(c.config.HTTPSPort)),
+		Handler:      handler,
+		WriteTimeout: httpServerWriteTimeout,
+		ReadTimeout:  httpServerReadTimeout,
+		IdleTimeout:  httpServerIdleTimeout,
+	}
+}
+
+func (c *Container) Router() *http.ServeMux {
+	if c.router == nil {
+		c.router = internalapi.CreateRouter(c)
+	}
+
+	return c.router
 }
 
 func (c *Container) Responder() *api.Responder {

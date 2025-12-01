@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -114,7 +115,11 @@ func Run(runParams RunParams) {
 		slog.String("build_date", defaults.BuildDate),
 	)
 
-	slog.InfoContext(ctx, fmt.Sprintf("Starting server on %s:%d", cfg.HTTPHost, cfg.HTTPPort))
+	slog.InfoContext(ctx, fmt.Sprintf("Starting HTTP server on %s:%d", cfg.HTTPHost, cfg.HTTPPort))
+
+	if cfg.TLSEnabled() {
+		startHTTPSServer(ctx, cfg, container)
+	}
 
 	server := container.HTTPServer()
 
@@ -126,4 +131,30 @@ func Run(runParams RunParams) {
 
 		return
 	}
+}
+
+func startHTTPSServer(ctx context.Context, cfg *config.Config, container *Container) {
+	cert, err := cfg.LoadTLSCertificate()
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to load TLS certificate", slog.String("error", err.Error()))
+
+		os.Exit(1)
+
+		return
+	}
+
+	httpsServer := container.HTTPSServer()
+	httpsServer.TLSConfig = &tls.Config{
+		Certificates: []tls.Certificate{*cert},
+		MinVersion:   tls.VersionTLS12,
+	}
+
+	go func() {
+		slog.InfoContext(ctx, fmt.Sprintf("Starting HTTPS server on %s:%d", cfg.HTTPHost, cfg.HTTPSPort))
+
+		err := httpsServer.ListenAndServeTLS("", "")
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			slog.ErrorContext(ctx, "HTTPS server error", slog.String("error", err.Error()))
+		}
+	}()
 }
