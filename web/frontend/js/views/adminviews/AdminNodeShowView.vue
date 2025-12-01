@@ -6,15 +6,19 @@
     <span>{{ trans('main.edit')}}</span>
   </GButton>
 
-  <GButton color="orange" size="middle" class="mb-5 mr-1" :link="'/api/dedicated_servers/'+route.params.id+'/logs.zip'">
+  <GButton color="orange" size="middle" class="mb-5 mr-1" :disabled="downloading" @click="downloadLogs">
     <i class="fa-solid fa-download mr-0.5"></i>
     <span>{{ trans('dedicated_servers.download_logs')}}</span>
   </GButton>
 
-  <GButton color="green" size="middle" class="mb-5 mr-1" link="/api/dedicated_servers/certificates.zip">
+  <GButton color="green" size="middle" class="mb-5 mr-1" :disabled="downloading" @click="downloadCertificates">
     <i class="fa-solid fa-download mr-0.5"></i>
     <span>{{ trans('dedicated_servers.download_certificates')}}</span>
   </GButton>
+
+  <div v-if="downloading" class="mb-5">
+    <Progressbar :progress="downloadProgress" />
+  </div>
 
   <n-card
       size="small"
@@ -87,7 +91,7 @@
 
 <script setup>
 import GBreadcrumbs from "../../components/GBreadcrumbs.vue"
-import {computed, onMounted} from "vue"
+import {computed, onMounted, ref} from "vue"
 import {trans} from "../../i18n/i18n"
 import {
   NCard,
@@ -96,15 +100,58 @@ import {
 import {useNodeStore} from "../../store/node"
 import {errorNotification} from "../../parts/dialogs"
 import Loading from "../../components/Loading.vue"
+import Progressbar from "../../components/Progressbar.vue"
 import {storeToRefs} from "pinia"
 import {useRoute} from "vue-router"
-import GButton from "../../components/GButton.vue";
+import GButton from "../../components/GButton.vue"
+import axios from "../../config/axios"
 
 const route = useRoute()
 
 const nodeStore = useNodeStore()
 
 const { daemonInfo, loading } = storeToRefs(nodeStore)
+
+const downloading = ref(false)
+const downloadProgress = ref(0)
+
+async function downloadFile(url, filename) {
+  downloading.value = true
+  downloadProgress.value = 0
+
+  try {
+    const response = await axios.get(url, {
+      responseType: 'blob',
+      onDownloadProgress: (progressEvent) => {
+        if (progressEvent.total) {
+          downloadProgress.value = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+        }
+      }
+    })
+
+    const blob = new Blob([response.data])
+    const link = document.createElement('a')
+    link.href = window.URL.createObjectURL(blob)
+    link.setAttribute('download', filename)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(link.href)
+  } catch (error) {
+    errorNotification(error)
+  } finally {
+    downloading.value = false
+    downloadProgress.value = 0
+  }
+}
+
+function downloadLogs() {
+  downloadFile(`/api/dedicated_servers/${route.params.id}/logs.zip`, 'logs.zip')
+}
+
+function downloadCertificates() {
+  downloadFile('/api/dedicated_servers/certificates.zip', 'certificates.zip')
+}
 
 const breadcrumbs = computed(() => {
   let result = [

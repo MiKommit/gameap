@@ -52,7 +52,7 @@
 </template>
 
 <script setup>
-import GBreadcrumbs from "../../components/GBreadcrumbs.vue"
+import GBreadcrumbs from "@/components/GBreadcrumbs.vue"
 import {computed, h, ref, reactive, onMounted} from "vue"
 import {
   NButton,
@@ -60,14 +60,14 @@ import {
   NInputGroup,
   NDataTable,
 } from "naive-ui"
-import {trans} from "../../i18n/i18n"
-import Loading from "../../components/Loading.vue"
-import {useDaemonTaskListStore} from "../../store/daemonTaskList"
-import {useNodeListStore} from "../../store/nodeList"
+import {trans} from "@/i18n/i18n"
+import Loading from "@/components/Loading.vue"
+import {useDaemonTaskListStore} from "@/store/daemonTaskList"
+import {useNodeListStore} from "@/store/nodeList"
 import {storeToRefs} from "pinia"
-import GButton from "../../components/GButton.vue";
-import GStatusBadge from "../../components/GStatusBadge.vue";
-import {errorNotification} from "../../parts/dialogs"
+import GButton from "@/components/GButton.vue";
+import GStatusBadge from "@/components/GStatusBadge.vue";
+import {errorNotification} from "@/parts/dialogs"
 
 const daemonTaskListStore = useDaemonTaskListStore()
 const nodeListStore = useNodeListStore()
