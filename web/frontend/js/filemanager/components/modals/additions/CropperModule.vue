@@ -2,7 +2,7 @@
     <div class="fm-additions-cropper">
         <div class="row" v-bind:style="{ 'max-height': maxHeight + 'px' }">
             <div class="col-sm-9 cropper-block">
-                <img v-bind:src="imgSrc" ref="fmCropper" v-bind:alt="selectedItem.basename" />
+                <img v-bind:src="imgSrc" ref="fmCropper" v-bind:alt="selectedItem?.basename" />
             </div>
             <div class="col-sm-3 ps-0">
                 <div class="cropper-preview"></div>
@@ -111,7 +111,7 @@
                 </button>
             </div>
             <span class="d-block">
-                <button v-on:click="$emit('closeCropper')" type="button" class="btn btn-light">
+                <button v-on:click="emit('closeCropper')" type="button" class="btn btn-light">
                     {{ lang.btn.back }}
                 </button>
             </span>
@@ -119,145 +119,108 @@
     </div>
 </template>
 
-<script>
-import Cropper from 'cropperjs';
-import translate from '../../../mixins/translate';
+<script setup>
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import Cropper from 'cropperjs'
+import { useFileManagerStore } from '../../../stores/useFileManagerStore.js'
+import { useTranslate } from '../../../composables/useTranslate.js'
 
-export default {
-    name: 'CropperModule',
-    mixins: [translate],
-    props: {
-        imgSrc: { required: true },
-        maxHeight: { type: Number, required: true },
-    },
-    data() {
-        return {
-            cropper: {},
-            height: 0,
-            width: 0,
-            x: 0,
-            y: 0,
-            rotate: 0,
-            scaleX: 1,
-            scaleY: 1,
-        };
-    },
-    mounted() {
-        // set cropper instance
-        this.cropper = new Cropper(this.$refs.fmCropper, {
-            preview: '.cropper-preview',
-            crop: (e) => {
-                this.x = Math.round(e.detail.x);
-                this.y = Math.round(e.detail.y);
-                this.height = Math.round(e.detail.height);
-                this.width = Math.round(e.detail.width);
-                this.rotate = typeof e.detail.rotate !== 'undefined' ? e.detail.rotate : '';
-                this.scaleX = typeof e.detail.scaleX !== 'undefined' ? e.detail.scaleX : '';
-                this.scaleY = typeof e.detail.scaleY !== 'undefined' ? e.detail.scaleY : '';
-            },
-        });
-    },
-    beforeDestroy() {
-        this.cropper.destroy();
-    },
-    computed: {
-        /**
-         * Selected file
-         * @returns {*}
-         */
-        selectedItem() {
-            return this.$store.getters['fm/selectedItems'][0];
-        },
-    },
-    methods: {
-        /**
-         * Move
-         * @param x
-         * @param y
-         */
-        cropMove(x, y) {
-            this.cropper.move(x, y);
-        },
+const props = defineProps({
+    imgSrc: { required: true },
+    maxHeight: { type: Number, required: true },
+})
 
-        /**
-         * Scale - mirroring Y
-         */
-        cropScaleY() {
-            this.cropper.scale(1, this.cropper.getData().scaleY === 1 ? -1 : 1);
-        },
+const emit = defineEmits(['closeCropper'])
 
-        /**
-         * Scale - mirroring X
-         */
-        cropScaleX() {
-            this.cropper.scale(this.cropper.getData().scaleX === 1 ? -1 : 1, 1);
-        },
+const fm = useFileManagerStore()
+const { lang } = useTranslate()
 
-        /**
-         * Rotate
-         * @param grade
-         */
-        cropRotate(grade) {
-            this.cropper.rotate(grade);
-        },
+const fmCropper = ref(null)
+const cropper = ref(null)
+const height = ref(0)
+const width = ref(0)
+const x = ref(0)
+const y = ref(0)
+const rotate = ref(0)
+const scaleX = ref(1)
+const scaleY = ref(1)
 
-        /**
-         * Zoom
-         * @param ratio
-         */
-        cropZoom(ratio) {
-            this.cropper.zoom(ratio);
-        },
+const selectedItem = computed(() => fm.selectedItems[0])
 
-        /**
-         * Reset
-         */
-        cropReset() {
-            this.cropper.reset();
-        },
+function cropMove(xVal, yVal) {
+    cropper.value.move(xVal, yVal)
+}
 
-        /**
-         * Set data from form
-         */
-        setData() {
-            this.cropper.setData({
-                x: this.x,
-                y: this.y,
-                width: this.width,
-                height: this.height,
-                rotate: this.rotate,
-                scaleX: this.scaleX,
-                scaleY: this.scaleY,
-            });
-        },
+function cropScaleY() {
+    cropper.value.scale(1, cropper.value.getData().scaleY === 1 ? -1 : 1)
+}
 
-        /**
-         * Save cropped image
-         */
-        cropSave() {
-            this.cropper.getCroppedCanvas().toBlob(
-                (blob) => {
-                    const formData = new FormData();
-                    // add disk name
-                    formData.append('disk', this.$store.getters['fm/selectedDisk']);
-                    // add path
-                    formData.append('path', this.selectedItem.dirname);
-                    // new image
-                    formData.append('file', blob, this.selectedItem.basename);
+function cropScaleX() {
+    cropper.value.scale(cropper.value.getData().scaleX === 1 ? -1 : 1, 1)
+}
 
-                    this.$store.dispatch('fm/updateFile', formData).then((response) => {
-                        // if file updated successfully
-                        if (response.data.result.status === 'success') {
-                            // close cropper
-                            this.$emit('closeCropper');
-                        }
-                    });
-                },
-                this.selectedItem.extension !== 'jpg' ? `image/${this.selectedItem.extension}` : 'image/jpeg'
-            );
+function cropRotate(grade) {
+    cropper.value.rotate(grade)
+}
+
+function cropZoom(ratio) {
+    cropper.value.zoom(ratio)
+}
+
+function cropReset() {
+    cropper.value.reset()
+}
+
+function setData() {
+    cropper.value.setData({
+        x: x.value,
+        y: y.value,
+        width: width.value,
+        height: height.value,
+        rotate: rotate.value,
+        scaleX: scaleX.value,
+        scaleY: scaleY.value,
+    })
+}
+
+function cropSave() {
+    cropper.value.getCroppedCanvas().toBlob(
+        (blob) => {
+            const formData = new FormData()
+            formData.append('disk', fm.selectedDisk)
+            formData.append('path', selectedItem.value.dirname)
+            formData.append('file', blob, selectedItem.value.basename)
+
+            fm.updateFile(formData).then((response) => {
+                if (response.data.result.status === 'success') {
+                    emit('closeCropper')
+                }
+            })
         },
-    },
-};
+        selectedItem.value.extension !== 'jpg' ? `image/${selectedItem.value.extension}` : 'image/jpeg'
+    )
+}
+
+onMounted(() => {
+    cropper.value = new Cropper(fmCropper.value, {
+        preview: '.cropper-preview',
+        crop: (e) => {
+            x.value = Math.round(e.detail.x)
+            y.value = Math.round(e.detail.y)
+            height.value = Math.round(e.detail.height)
+            width.value = Math.round(e.detail.width)
+            rotate.value = typeof e.detail.rotate !== 'undefined' ? e.detail.rotate : ''
+            scaleX.value = typeof e.detail.scaleX !== 'undefined' ? e.detail.scaleX : ''
+            scaleY.value = typeof e.detail.scaleY !== 'undefined' ? e.detail.scaleY : ''
+        },
+    })
+})
+
+onBeforeUnmount(() => {
+    if (cropper.value) {
+        cropper.value.destroy()
+    }
+})
 </script>
 
 <style lang="scss">

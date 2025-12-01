@@ -1,5 +1,5 @@
 <template>
-    <figure class="fm-thumbnail">
+    <figure class="fm-thumbnail" ref="thumbnail">
         <transition name="fade" mode="out-in">
             <i v-if="!src" class="far fa-file-image" />
             <img v-else v-bind:src="src" v-bind:alt="file.filename" class="img-thumbnail" />
@@ -7,82 +7,70 @@
     </figure>
 </template>
 
-<script>
-import GET from '../../http/get';
+<script setup>
+import { ref, watch, onMounted, computed } from 'vue'
+import { useSettingsStore } from '../../stores/useSettingsStore.js'
+import GET from '../../http/get.js'
 
-export default {
-    name: 'Thumbnail',
-    data() {
-        return {
-            src: '',
-        };
+const props = defineProps({
+    disk: {
+        type: String,
+        required: true,
     },
-    props: {
-        disk: {
-            type: String,
-            required: true,
-        },
-        file: {
-            type: Object,
-            required: true,
-        },
+    file: {
+        type: Object,
+        required: true,
     },
-    watch: {
-        'file.timestamp': 'loadImage',
-    },
-    mounted() {
-        if (window.IntersectionObserver) {
-            const observer = new IntersectionObserver(
-                (entries, obs) => {
-                    entries.forEach((entry) => {
-                        if (entry.isIntersecting) {
-                            this.loadImage();
-                            obs.unobserve(this.$el);
-                        }
-                    });
-                },
-                {
-                    root: null,
-                    threshold: '0.5',
-                }
-            );
+})
 
-            // add observer for template
-            observer.observe(this.$el);
-        } else {
-            this.loadImage();
-        }
-    },
-    computed: {
-        /**
-         * Authorization required
-         * @return {*}
-         */
-        auth() {
-            return this.$store.getters['fm/settings/authHeader'];
-        },
-    },
-    methods: {
-        /**
-         * Load image
-         */
-        loadImage() {
-            // if authorization required
-            if (this.auth) {
-                GET.thumbnail(this.disk, this.file.path).then((response) => {
-                    const mimeType = response.headers['content-type'].toLowerCase();
-                    const imgBase64 = btoa(String.fromCharCode.apply(null, new Uint8Array(response.data)));
+const settings = useSettingsStore()
 
-                    this.src = `data:${mimeType};base64,${imgBase64}`;
-                });
-            } else {
-                this.src = `${this.$store.getters['fm/settings/baseUrl']}thumbnails?disk=${
-                    this.disk
-                }&path=${encodeURIComponent(this.file.path)}&v=${this.file.timestamp}`;
+const src = ref('')
+const thumbnail = ref(null)
+
+const auth = computed(() => settings.authHeader)
+
+function loadImage() {
+    if (auth.value) {
+        GET.thumbnail(props.disk, props.file.path).then((response) => {
+            const mimeType = response.headers['content-type'].toLowerCase()
+            const imgBase64 = btoa(String.fromCharCode.apply(null, new Uint8Array(response.data)))
+            src.value = `data:${mimeType};base64,${imgBase64}`
+        })
+    } else {
+        src.value = `${settings.baseUrl}thumbnails?disk=${props.disk}&path=${encodeURIComponent(props.file.path)}&v=${props.file.timestamp}`
+    }
+}
+
+watch(
+    () => props.file.timestamp,
+    () => {
+        loadImage()
+    }
+)
+
+onMounted(() => {
+    if (window.IntersectionObserver) {
+        const observer = new IntersectionObserver(
+            (entries, obs) => {
+                entries.forEach((entry) => {
+                    if (entry.isIntersecting) {
+                        loadImage()
+                        obs.unobserve(thumbnail.value)
+                    }
+                })
+            },
+            {
+                root: null,
+                threshold: 0.5,
             }
-        },
-    },
-};
+        )
+
+        observer.observe(thumbnail.value)
+    } else {
+        loadImage()
+    }
+})
 </script>
 
 <style lang="scss">

@@ -13,7 +13,7 @@
                     type="text"
                     class="form-control"
                     id="fm-file-name"
-                    v-focus
+                    ref="fileNameInput"
                     v-bind:class="{ 'is-invalid': fileExist }"
                     v-model="fileName"
                     v-on:keyup="validateFileName"
@@ -32,53 +32,39 @@
     </div>
 </template>
 
-<script>
-import modal from '../mixins/modal';
-import translate from '../../../mixins/translate';
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useFileManagerStore } from '../../../stores/useFileManagerStore.js'
+import { useTranslate } from '../../../composables/useTranslate.js'
+import { useModal } from '../../../composables/useModal.js'
 
-export default {
-    name: 'NewFileModal',
-    mixins: [modal, translate],
-    data() {
-        return {
-            // name for new file
-            fileName: '',
+const fm = useFileManagerStore()
+const { lang } = useTranslate()
+const { activeManager, hideModal } = useModal()
 
-            // file exist
-            fileExist: false,
-        };
-    },
-    computed: {
-        /**
-         * Submit button - active or no
-         * @returns {string|boolean}
-         */
-        submitActive() {
-            return this.fileName && !this.fileExist;
-        },
-    },
-    methods: {
-        /**
-         * Check the file name if it exists or not.
-         */
-        validateFileName() {
-            if (this.fileName) {
-                this.fileExist = this.$store.getters[`fm/${this.activeManager}/fileExist`](this.fileName);
-            } else {
-                this.fileExist = false;
-            }
-        },
+const fileName = ref('')
+const fileExist = ref(false)
+const fileNameInput = ref(null)
 
-        /**
-         * Create new file
-         */
-        addFile() {
-            this.$store.dispatch('fm/createFile', this.fileName).then((response) => {
-                if (response.data.result.status === 'success') {
-                    this.hideModal();
-                }
-            });
-        },
-    },
-};
+const submitActive = computed(() => fileName.value && !fileExist.value)
+
+onMounted(() => {
+    fileNameInput.value?.focus()
+})
+
+function validateFileName() {
+    if (fileName.value) {
+        fileExist.value = fm.fileExist(activeManager.value, fileName.value)
+    } else {
+        fileExist.value = false
+    }
+}
+
+function addFile() {
+    fm.createFile(fileName.value).then((response) => {
+        if (response.data.result.status === 'success') {
+            hideModal()
+        }
+    })
+}
 </script>

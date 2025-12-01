@@ -3,7 +3,7 @@
         <div class="modal-header grid grid-cols-2">
             <h5 class="modal-title w-75 text-truncate">
                 {{ showCropperModule ? lang.modal.cropper.title : lang.modal.preview.title }}
-                <small class="text-muted pl-3">{{ selectedItem.basename }}</small>
+                <small class="text-muted pl-3">{{ selectedItem?.basename }}</small>
             </h5>
             <button type="button" class="btn-close" aria-label="Close" v-on:click="hideModal">
                 <i class="fa-solid fa-xmark"></i>
@@ -20,7 +20,7 @@
                 <img
                     v-else
                     v-bind:src="imgSrc"
-                    v-bind:alt="selectedItem.basename"
+                    v-bind:alt="selectedItem?.basename"
                     v-bind:style="{ 'max-height': maxHeight + 'px' }"
                 />
             </transition>
@@ -43,110 +43,65 @@
     </div>
 </template>
 
-<script>
-import CropperModule from '../additions/CropperModule.vue';
-import modal from '../mixins/modal';
-import translate from '../../../mixins/translate';
-import helper from '../../../mixins/helper';
-import GET from '../../../http/get';
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import CropperModule from '../additions/CropperModule.vue'
+import { useFileManagerStore } from '../../../stores/useFileManagerStore.js'
+import { useSettingsStore } from '../../../stores/useSettingsStore.js'
+import { useModalStore } from '../../../stores/useModalStore.js'
+import { useTranslate } from '../../../composables/useTranslate.js'
+import { useModal } from '../../../composables/useModal.js'
+import GET from '../../../http/get.js'
 
-export default {
-    name: 'PreviewModal',
-    mixins: [modal, translate, helper],
-    components: { CropperModule },
-    data() {
-        return {
-            showCropperModule: false,
-            imgSrc: null,
-        };
-    },
-    mounted() {
-        this.loadImage();
-    },
-    computed: {
-        /**
-         * Authorization required
-         * @return {*}
-         */
-        auth() {
-            return this.$store.getters['fm/settings/authHeader'];
-        },
+const fm = useFileManagerStore()
+const settings = useSettingsStore()
+const modal = useModalStore()
+const { lang } = useTranslate()
+const { hideModal } = useModal()
 
-        /**
-         * Selected disk
-         * @returns {*}
-         */
-        selectedDisk() {
-            return this.$store.getters['fm/selectedDisk'];
-        },
+const showCropperModule = ref(false)
+const imgSrc = ref(null)
 
-        /**
-         * Selected file
-         * @returns {*}
-         */
-        selectedItem() {
-            return this.$store.getters['fm/selectedItems'][0];
-        },
+const auth = computed(() => settings.authHeader)
+const selectedDisk = computed(() => fm.selectedDisk)
+const selectedItem = computed(() => fm.selectedItems[0])
 
-        /**
-         * Show modal footer
-         * @return boolean
-         */
-        showFooter() {
-            return this.canCrop(this.selectedItem.extension) && !this.showCropperModule;
-        },
+const showFooter = computed(() => {
+    if (!selectedItem.value?.extension) return false
+    return canCrop(selectedItem.value.extension) && !showCropperModule.value
+})
 
-        /**
-         * Calculate the max height for image
-         * @returns {number}
-         */
-        maxHeight() {
-            if (this.$store.state.fm.modal.modalBlockHeight) {
-                return this.$store.state.fm.modal.modalBlockHeight - 170;
-            }
+const maxHeight = computed(() => {
+    if (modal.modalBlockHeight) {
+        return modal.modalBlockHeight - 170
+    }
+    return 300
+})
 
-            return 300;
-        },
-    },
-    methods: {
-        /**
-         * Can we crop this image?
-         * @param extension
-         * @returns {boolean}
-         */
-        canCrop(extension) {
-            return this.$store.state.fm.settings.cropExtensions.includes(extension.toLowerCase());
-        },
+function canCrop(extension) {
+    return settings.cropExtensions.includes(extension.toLowerCase())
+}
 
-        /**
-         * Close cropper
-         */
-        closeCropper() {
-            this.showCropperModule = false;
-            this.loadImage();
-        },
+function closeCropper() {
+    showCropperModule.value = false
+    loadImage()
+}
 
-        /**
-         * Load image
-         */
-        loadImage() {
-            // if authorization required
-            if (this.auth) {
-                GET.preview(this.selectedDisk, this.selectedItem.path).then((response) => {
-                    const mimeType = response.headers['content-type'].toLowerCase();
+function loadImage() {
+    if (auth.value) {
+        GET.preview(selectedDisk.value, selectedItem.value.path).then((response) => {
+            const mimeType = response.headers['content-type'].toLowerCase()
+            const imgBase64 = btoa(String.fromCharCode.apply(null, new Uint8Array(response.data)))
+            imgSrc.value = `data:${mimeType};base64,${imgBase64}`
+        })
+    } else {
+        imgSrc.value = `${settings.baseUrl}preview?disk=${selectedDisk.value}&path=${encodeURIComponent(selectedItem.value.path)}&v=${selectedItem.value.timestamp}`
+    }
+}
 
-                    const imgBase64 = btoa(String.fromCharCode.apply(null, new Uint8Array(response.data)));
-
-                    this.imgSrc = `data:${mimeType};base64,${imgBase64}`;
-                });
-            } else {
-                this.imgSrc = `${this.$store.getters['fm/settings/baseUrl']}preview?disk=${
-                    this.selectedDisk
-                }&path=${encodeURIComponent(this.selectedItem.path)}&v=${this.selectedItem.timestamp}`;
-            }
-        },
-    },
-};
+onMounted(() => {
+    loadImage()
+})
 </script>
 
 <style lang="scss">

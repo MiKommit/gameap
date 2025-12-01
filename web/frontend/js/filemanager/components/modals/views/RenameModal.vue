@@ -13,7 +13,7 @@
                     type="text"
                     class="form-control"
                     id="fm-input-rename"
-                    v-focus
+                    ref="renameInput"
                     v-bind:class="{ 'is-invalid': checkName }"
                     v-model="name"
                     v-on:keyup="validateName"
@@ -34,84 +34,51 @@
     </div>
 </template>
 
-<script>
-import modal from '../mixins/modal.js';
-import translate from '../../../mixins/translate.js';
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useFileManagerStore } from '../../../stores/useFileManagerStore.js'
+import { useTranslate } from '../../../composables/useTranslate.js'
+import { useModal } from '../../../composables/useModal.js'
 
-export default {
-    name: 'RenameModal',
-    mixins: [modal, translate],
-    data() {
-        return {
-            name: '',
-            directoryExist: false,
-            fileExist: false,
-        };
-    },
-    computed: {
-        /**
-         * Selected item
-         * @returns {*}
-         */
-        selectedItem() {
-            return this.$store.getters[`fm/${this.activeManager}/selectedList`][0];
-        },
+const fm = useFileManagerStore()
+const { lang } = useTranslate()
+const { activeManager, hideModal } = useModal()
 
-        /**
-         * Check new name
-         * @returns {boolean}
-         */
-        checkName() {
-            return this.directoryExist || this.fileExist || !this.name;
-        },
+const name = ref('')
+const directoryExist = ref(false)
+const fileExist = ref(false)
+const renameInput = ref(null)
 
-        /**
-         * Submit button disable
-         * @returns {*|boolean}
-         */
-        submitDisable() {
-            return this.checkName || this.name === this.selectedItem.basename;
-        },
-    },
-    mounted() {
-        // initiate item name
-        this.name = this.selectedItem.basename;
-    },
-    methods: {
-        /**
-         * Validate item name
-         */
-        validateName() {
-            if (this.name !== this.selectedItem.basename) {
-                // if item - folder
-                if (this.selectedItem.type === 'dir') {
-                    // check folder name matches
-                    this.directoryExist = this.$store.getters[`fm/${this.activeManager}/directoryExist`](this.name);
-                } else {
-                    // check file name matches
-                    this.fileExist = this.$store.getters[`fm/${this.activeManager}/fileExist`](this.name);
-                }
-            }
-        },
+const selectedItem = computed(() => fm.getSelectedList(activeManager.value)[0])
+const checkName = computed(() => directoryExist.value || fileExist.value || !name.value)
+const submitDisable = computed(() => checkName.value || name.value === selectedItem.value?.basename)
 
-        /**
-         * Rename item
-         */
-        rename() {
-            // create new name with path
-            const newName = this.selectedItem.dirname ? `${this.selectedItem.dirname}/${this.name}` : this.name;
+onMounted(() => {
+    name.value = selectedItem.value?.basename || ''
+    renameInput.value?.focus()
+})
 
-            this.$store
-                .dispatch('fm/rename', {
-                    type: this.selectedItem.type,
-                    newName,
-                    oldName: this.selectedItem.path,
-                })
-                .then(() => {
-                    // close modal window
-                    this.hideModal();
-                });
-        },
-    },
-};
+function validateName() {
+    if (name.value !== selectedItem.value?.basename) {
+        if (selectedItem.value?.type === 'dir') {
+            directoryExist.value = fm.directoryExist(activeManager.value, name.value)
+        } else {
+            fileExist.value = fm.fileExist(activeManager.value, name.value)
+        }
+    }
+}
+
+function rename() {
+    const newName = selectedItem.value.dirname
+        ? `${selectedItem.value.dirname}/${name.value}`
+        : name.value
+
+    fm.rename({
+        type: selectedItem.value.type,
+        newName,
+        oldName: selectedItem.value.path,
+    }).then(() => {
+        hideModal()
+    })
+}
 </script>

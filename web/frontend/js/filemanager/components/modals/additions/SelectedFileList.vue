@@ -14,22 +14,15 @@
     </div>
 </template>
 
-<script>
-import helper from '../../../mixins/helper';
+<script setup>
+import { computed } from 'vue'
+import { useFileManagerStore } from '../../../stores/useFileManagerStore.js'
+import { useHelper } from '../../../composables/useHelper.js'
 
-export default {
-    name: 'SelectedFileList',
-    mixins: [helper],
-    computed: {
-        /**
-         * Selected files and folders
-         * @returns {*}
-         */
-        selectedItems() {
-            return this.$store.getters['fm/selectedItems'];
-        },
-    },
-};
+const fm = useFileManagerStore()
+const { bytesToHuman, extensionToIcon } = useHelper()
+
+const selectedItems = computed(() => fm.selectedItems)
 </script>
 
 <style lang="scss">

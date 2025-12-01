@@ -63,7 +63,7 @@
                         class="btn btn-small btn-secondary rounded-s border-r"
                         v-bind:disabled="!isAnyItemSelected"
                         v-bind:title="lang.btn.copy"
-                        v-on:click="toClipboard('copy')"
+                        v-on:click="handleToClipboard('copy')"
                     >
                         <i class="fa-regular fa-copy"></i>
                     </button>
@@ -72,7 +72,7 @@
                         class="btn btn-small btn-secondary border-r"
                         v-bind:disabled="!isAnyItemSelected"
                         v-bind:title="lang.btn.cut"
-                        v-on:click="toClipboard('cut')"
+                        v-on:click="handleToClipboard('cut')"
                     >
                         <i class="fa-solid fa-scissors"></i>
                     </button>
@@ -81,7 +81,7 @@
                         class="btn btn-small btn-secondary rounded-e"
                         v-bind:disabled="!clipboardType"
                         v-bind:title="lang.btn.paste"
-                        v-on:click="paste"
+                        v-on:click="handlePaste"
                     >
                         <i class="fa-regular fa-paste"></i>
                     </button>
@@ -113,199 +113,118 @@
     </div>
 </template>
 
-<script>
-import translate from '../../mixins/translate.js';
-import {notification} from '@/parts/dialogs.js';
+<script setup>
+import { computed } from 'vue'
+import { notification } from '@/parts/dialogs.js'
+import { useFileManagerStore } from '../../stores/useFileManagerStore.js'
+import { useMessagesStore } from '../../stores/useMessagesStore.js'
+import { useModalStore } from '../../stores/useModalStore.js'
+import { useSettingsStore } from '../../stores/useSettingsStore.js'
+import { useTranslate } from '../../composables/useTranslate.js'
 
-export default {
-    name: 'NavbarBlock',
-    mixins: [translate],
-    computed: {
-        /**
-         * Active manager name
-         * @returns {any}
-         */
-        activeManager() {
-            return this.$store.state.fm.activeManager;
-        },
+const fm = useFileManagerStore()
+const messages = useMessagesStore()
+const modal = useModalStore()
+const settings = useSettingsStore()
+const { lang } = useTranslate()
 
-        /**
-         * Back button state
-         * @returns {boolean}
-         */
-        backDisabled() {
-            return !this.$store.state.fm[this.activeManager].historyPointer;
-        },
+// Computed
+const activeManager = computed(() => fm.activeManager)
 
-        /**
-         * Forward button state
-         * @returns {boolean}
-         */
-        forwardDisabled() {
-            return (
-                this.$store.state.fm[this.activeManager].historyPointer ===
-                this.$store.state.fm[this.activeManager].history.length - 1
-            );
-        },
+const backDisabled = computed(() => !fm.getManager(activeManager.value).historyPointer)
 
-        /**
-         * Is any files or directories selected?
-         * @returns {boolean}
-         */
-        isAnyItemSelected() {
-            return (
-                this.$store.state.fm[this.activeManager].selected.files.length > 0 ||
-                this.$store.state.fm[this.activeManager].selected.directories.length > 0
-            );
-        },
+const forwardDisabled = computed(() => {
+    const manager = fm.getManager(activeManager.value)
+    return manager.historyPointer === manager.history.length - 1
+})
 
-        /**
-         * Manager view type - grid or table
-         * @returns {any}
-         */
-        viewType() {
-            return this.$store.state.fm[this.activeManager].viewType;
-        },
+const isAnyItemSelected = computed(() => {
+    const manager = fm.getManager(activeManager.value)
+    return manager.selected.files.length > 0 || manager.selected.directories.length > 0
+})
 
-        /**
-         * Upload files
-         * @returns {boolean}
-         */
-        uploading() {
-            return this.$store.state.fm.messages.actionProgress > 0;
-        },
+const viewType = computed(() => fm.getManager(activeManager.value).viewType)
 
-        /**
-         * Clipboard - action type
-         * @returns {null}
-         */
-        clipboardType() {
-            return this.$store.state.fm.clipboard.type;
-        },
+const uploading = computed(() => messages.actionProgress > 0)
 
-        /**
-         * Full screen status
-         * @returns {any}
-         */
-        fullScreen() {
-            return this.$store.state.fm.fullScreen;
-        },
+const clipboardType = computed(() => fm.clipboard.type)
 
-        /**
-         * Show or Hide hidden files
-         * @returns {boolean}
-         */
-        hiddenFiles() {
-            return this.$store.state.fm.settings.hiddenFiles;
-        },
-    },
-    methods: {
-        /**
-         * Refresh file manager
-         */
-        refreshAll() {
-            this.$store.dispatch('fm/refreshAll');
-        },
+const fullScreen = computed(() => fm.fullScreen)
 
-        /**
-         * History back
-         */
-        historyBack() {
-            this.$store.dispatch(`fm/${this.activeManager}/historyBack`);
-        },
+const hiddenFiles = computed(() => settings.hiddenFiles)
 
-        /**
-         * History forward
-         */
-        historyForward() {
-            this.$store.dispatch(`fm/${this.activeManager}/historyForward`);
-        },
+// Methods
+function refreshAll() {
+    fm.refreshAll()
+}
 
-        /**
-         * Copy
-         * @param type
-         */
-        toClipboard(type) {
-            this.$store.dispatch('fm/toClipboard', type);
+function historyBack() {
+    fm.historyBack(activeManager.value)
+}
 
-            // show notification
-            if (type === 'cut') {
-                notification({
-                    content: this.lang.notifications.cutToClipboard,
-                    type: 'success',
-                });
-            } else if (type === 'copy') {
-                notification({
-                    content: this.lang.notifications.copyToClipboard,
-                    type: 'success',
-                });
-            }
-        },
+function historyForward() {
+    fm.historyForward(activeManager.value)
+}
 
-        /**
-         * Paste
-         */
-        paste() {
-            this.$store.dispatch('fm/paste');
-        },
+function handleToClipboard(type) {
+    fm.toClipboard(type)
 
-        /**
-         * Set Hide or Show hidden files
-         */
-        toggleHidden() {
-            this.$store.commit('fm/settings/toggleHiddenFiles');
-        },
+    if (type === 'cut') {
+        notification({
+            content: lang.value.notifications.cutToClipboard,
+            type: 'success',
+        })
+    } else if (type === 'copy') {
+        notification({
+            content: lang.value.notifications.copyToClipboard,
+            type: 'success',
+        })
+    }
+}
 
-        /**
-         * Show modal window
-         * @param modalName
-         */
-        showModal(modalName) {
-            // show selected modal
-            this.$store.commit('fm/modal/setModalState', {
-                modalName,
-                show: true,
-            });
-        },
+function handlePaste() {
+    fm.paste()
+}
 
-        /**
-         * Select view type
-         * @param type
-         */
-        selectView(type) {
-            if (this.viewType !== type) this.$store.commit(`fm/${this.activeManager}/setView`, type);
-        },
+function toggleHidden() {
+    settings.toggleHiddenFiles()
+}
 
-        /**
-         * Full screen toggle
-         */
-        screenToggle() {
-            const fm = document.getElementsByClassName('fm')[0];
+function showModal(modalName) {
+    modal.setModalState({ modalName, show: true })
+}
 
-            if (!this.fullScreen) {
-                if (fm.requestFullscreen) {
-                    fm.requestFullscreen();
-                } else if (fm.mozRequestFullScreen) {
-                    fm.mozRequestFullScreen();
-                } else if (fm.webkitRequestFullscreen) {
-                    fm.webkitRequestFullscreen();
-                } else if (fm.msRequestFullscreen) {
-                    fm.msRequestFullscreen();
-                }
-            } else if (document.exitFullscreen) {
-                document.exitFullscreen();
-            } else if (document.webkitExitFullscreen) {
-                document.webkitExitFullscreen();
-            } else if (document.mozCancelFullScreen) {
-                document.mozCancelFullScreen();
-            } else if (document.msExitFullscreen) {
-                document.msExitFullscreen();
-            }
+function selectView(type) {
+    if (viewType.value !== type) {
+        fm.setManagerView(activeManager.value, type)
+    }
+}
 
-            this.$store.commit('fm/screenToggle');
-        },
-    },
-};
+function screenToggle() {
+    const fmEl = document.getElementsByClassName('fm')[0]
+
+    if (!fullScreen.value) {
+        if (fmEl.requestFullscreen) {
+            fmEl.requestFullscreen()
+        } else if (fmEl.mozRequestFullScreen) {
+            fmEl.mozRequestFullScreen()
+        } else if (fmEl.webkitRequestFullscreen) {
+            fmEl.webkitRequestFullscreen()
+        } else if (fmEl.msRequestFullscreen) {
+            fmEl.msRequestFullscreen()
+        }
+    } else if (document.exitFullscreen) {
+        document.exitFullscreen()
+    } else if (document.webkitExitFullscreen) {
+        document.webkitExitFullscreen()
+    } else if (document.mozCancelFullScreen) {
+        document.mozCancelFullScreen()
+    } else if (document.msExitFullscreen) {
+        document.msExitFullscreen()
+    }
+
+    fm.screenToggle()
+}
 </script>
 
 <style lang="scss">

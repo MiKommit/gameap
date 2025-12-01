@@ -6,7 +6,7 @@
                     <div class="relative bg-white rounded-lg shadow dark:bg-stone-700">
                         <div class="p-4 md:p-5 space-y-4">
                             <div class="modal-dialog modal-dialog-centered" role="document" v-on:click.stop>
-                                <component v-bind:is="modalName" />
+                                <component v-bind:is="modalComponents[modalName]" />
                             </div>
                         </div>
 
@@ -17,76 +17,62 @@
     </transition>
 </template>
 
-<script>
-import NewFileModal from './views/NewFileModal.vue';
-import NewFolderModal from './views/NewFolderModal.vue';
-import UploadModal from './views/UploadModal.vue';
-import DeleteModal from './views/DeleteModal.vue';
-import ClipboardModal from './views/ClipboardModal.vue';
-import StatusModal from './views/StatusModal.vue';
-import RenameModal from './views/RenameModal.vue';
-import PropertiesModal from './views/PropertiesModal.vue';
-import PreviewModal from './views/PreviewModal.vue';
-import TextEditModal from './views/TextEditModal.vue';
-import AudioPlayerModal from './views/AudioPlayerModal.vue';
-import VideoPlayerModal from './views/VideoPlayerModal.vue';
-import ZipModal from './views/ZipModal.vue';
-import UnzipModal from './views/UnzipModal.vue';
-import AboutModal from './views/AboutModal.vue';
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useModalStore } from '../../stores/useModalStore.js'
+import NewFileModal from './views/NewFileModal.vue'
+import NewFolderModal from './views/NewFolderModal.vue'
+import UploadModal from './views/UploadModal.vue'
+import DeleteModal from './views/DeleteModal.vue'
+import ClipboardModal from './views/ClipboardModal.vue'
+import StatusModal from './views/StatusModal.vue'
+import RenameModal from './views/RenameModal.vue'
+import PropertiesModal from './views/PropertiesModal.vue'
+import PreviewModal from './views/PreviewModal.vue'
+import TextEditModal from './views/TextEditModal.vue'
+import AudioPlayerModal from './views/AudioPlayerModal.vue'
+import VideoPlayerModal from './views/VideoPlayerModal.vue'
+import ZipModal from './views/ZipModal.vue'
+import UnzipModal from './views/UnzipModal.vue'
+import AboutModal from './views/AboutModal.vue'
 
-export default {
-    name: 'ModalBlock',
-    components: {
-        NewFileModal,
-        NewFolderModal,
-        UploadModal,
-        DeleteModal,
-        ClipboardModal,
-        StatusModal,
-        RenameModal,
-        PropertiesModal,
-        PreviewModal,
-        TextEditModal,
-        AudioPlayerModal,
-        VideoPlayerModal,
-        ZipModal,
-        UnzipModal,
-        AboutModal,
-    },
-    mounted() {
-        // set height
-        this.$store.commit('fm/modal/setModalBlockHeight', this.$refs.fmModal.offsetHeight);
-    },
-    computed: {
-        /**
-         * Selected modal name
-         * @returns {null|*}
-         */
-        modalName() {
-            return this.$store.state.fm.modal.modalName;
-        },
+const modal = useModalStore()
 
-        /**
-         * Modal size style
-         * @returns {{'modal-lg': boolean, 'modal-sm': boolean}}
-         */
-        modalSize() {
-            return {
-                'modal-xl': this.modalName === 'PreviewModal' || this.modalName === 'TextEditModal',
-                'modal-lg': this.modalName === 'VideoPlayerModal',
-                'modal-sm': false,
-            };
-        },
-    },
-    methods: {
-        /**
-         * Hide modal window
-         */
-        hideModal() {
-            this.$store.commit('fm/modal/clearModal');
-        },
-    },
-};
+const fmModal = ref(null)
+
+const modalComponents = {
+    NewFileModal,
+    NewFolderModal,
+    UploadModal,
+    DeleteModal,
+    ClipboardModal,
+    StatusModal,
+    RenameModal,
+    PropertiesModal,
+    PreviewModal,
+    TextEditModal,
+    AudioPlayerModal,
+    VideoPlayerModal,
+    ZipModal,
+    UnzipModal,
+    AboutModal,
+}
+
+const modalName = computed(() => modal.modalName)
+
+const modalSize = computed(() => ({
+    'modal-xl': modalName.value === 'PreviewModal' || modalName.value === 'TextEditModal',
+    'modal-lg': modalName.value === 'VideoPlayerModal',
+    'modal-sm': false,
+}))
+
+onMounted(() => {
+    modal.setModalBlockHeight(fmModal.value.offsetHeight)
+})
+
+function hideModal() {
+    modal.clearModal()
+}
 </script>
 
 <style lang="scss">

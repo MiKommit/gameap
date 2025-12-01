@@ -21,39 +21,27 @@
     </div>
 </template>
 
-<script>
-import SelectedFileList from '../additions/SelectedFileList.vue';
-import modal from '../mixins/modal.js';
-import translate from '../../../mixins/translate.js';
+<script setup>
+import { computed } from 'vue'
+import SelectedFileList from '../additions/SelectedFileList.vue'
+import { useFileManagerStore } from '../../../stores/useFileManagerStore.js'
+import { useTranslate } from '../../../composables/useTranslate.js'
+import { useModal } from '../../../composables/useModal.js'
 
-export default {
-    name: 'DeleteModal',
-    mixins: [modal, translate],
-    components: { SelectedFileList },
-    computed: {
-        /**
-         * Files and folders for deleting
-         * @returns {*}
-         */
-        selectedItems() {
-            return this.$store.getters['fm/selectedItems'];
-        },
-    },
-    methods: {
-        /**
-         * Delete selected directories and files
-         */
-        deleteItems() {
-            // create items list for delete
-            const items = this.selectedItems.map((item) => ({
-                path: item.path,
-                type: item.type,
-            }));
+const fm = useFileManagerStore()
+const { lang } = useTranslate()
+const { hideModal } = useModal()
 
-            this.$store.dispatch('fm/delete', items).then(() => {
-                this.hideModal();
-            });
-        },
-    },
-};
+const selectedItems = computed(() => fm.selectedItems)
+
+function deleteItems() {
+    const items = selectedItems.value.map((item) => ({
+        path: item.path,
+        type: item.type,
+    }))
+
+    fm.delete(items).then(() => {
+        hideModal()
+    })
+}
 </script>

@@ -4,7 +4,7 @@
             <p
                 class="unselectable"
                 v-bind:class="{ selected: isDirectorySelected(directory.path) }"
-                v-on:click="selectDirectory(directory.path)"
+                v-on:click="selectDirectoryAction(directory.path)"
             >
                 <i
                     class="fa-regular"
@@ -28,67 +28,43 @@
     </ul>
 </template>
 
-<script>
-export default {
-    name: 'TreeBranch',
-    props: {
-        parentId: { type: Number, required: true },
-    },
-    computed: {
-        /**
-         * Subdirectories for selected parent
-         * @returns {*}
-         */
-        subDirectories() {
-            return this.$store.getters['fm/tree/directories'].filter((item) => item.parentId === this.parentId);
-        },
-    },
-    methods: {
-        /**
-         * Check, is this directory selected?
-         * @param path
-         * @returns {boolean}
-         */
-        isDirectorySelected(path) {
-            return this.$store.state.fm.left.selectedDirectory === path;
-        },
+<script setup>
+import { computed } from 'vue'
+import { useFileManagerStore } from '../../stores/useFileManagerStore.js'
+import { useTreeStore } from '../../stores/useTreeStore.js'
 
-        /**
-         * Show subdirectories - arrow
-         * @returns {boolean}
-         * @param index
-         */
-        arrowState(index) {
-            return this.subDirectories[index].props.showSubdirectories;
-        },
+const props = defineProps({
+    parentId: { type: Number, required: true },
+})
 
-        /**
-         * Show/Hide subdirectories
-         * @param path
-         * @param showState
-         */
-        showSubdirectories(path, showState) {
-            if (showState) {
-                // hide
-                this.$store.dispatch('fm/tree/hideSubdirectories', path);
-            } else {
-                // show
-                this.$store.dispatch('fm/tree/showSubdirectories', path);
-            }
-        },
+const fm = useFileManagerStore()
+const tree = useTreeStore()
 
-        /**
-         * Load selected directory and show files
-         * @param path
-         */
-        selectDirectory(path) {
-            // only if this path not selected
-            if (!this.isDirectorySelected(path)) {
-                this.$store.dispatch('fm/left/selectDirectory', { path, history: true });
-            }
-        },
-    },
-};
+const subDirectories = computed(() =>
+    tree.directories.filter((item) => item.parentId === props.parentId)
+)
+
+function isDirectorySelected(path) {
+    return fm.left.selectedDirectory === path
+}
+
+function arrowState(index) {
+    return subDirectories.value[index].props.showSubdirectories
+}
+
+function showSubdirectories(path, showState) {
+    if (showState) {
+        tree.hideSubdirectories(path)
+    } else {
+        tree.showSubdirectories(path)
+    }
+}
+
+function selectDirectoryAction(path) {
+    if (!isDirectorySelected(path)) {
+        fm.selectDirectory('left', { path, history: true })
+    }
+}
 </script>
 
 <style lang="scss">

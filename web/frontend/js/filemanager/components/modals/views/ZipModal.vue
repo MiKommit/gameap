@@ -13,7 +13,7 @@
                     type="text"
                     class="form-control"
                     id="fm-zip-name"
-                    v-focus
+                    ref="archiveInput"
                     v-bind:class="{ 'is-invalid': archiveExist }"
                     v-model="archiveName"
                     v-on:keyup="validateArchiveName"
@@ -37,56 +37,38 @@
     </div>
 </template>
 
-<script>
-import SelectedFileList from '../additions/SelectedFileList.vue';
-import modal from '../mixins/modal';
-import translate from '../../../mixins/translate';
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import SelectedFileList from '../additions/SelectedFileList.vue'
+import { useFileManagerStore } from '../../../stores/useFileManagerStore.js'
+import { useTranslate } from '../../../composables/useTranslate.js'
+import { useModal } from '../../../composables/useModal.js'
 
-export default {
-    name: 'ZipModal',
-    mixins: [modal, translate],
-    components: { SelectedFileList },
-    data() {
-        return {
-            // name for new archive
-            archiveName: '',
+const fm = useFileManagerStore()
+const { lang } = useTranslate()
+const { activeManager, hideModal } = useModal()
 
-            // archive exist
-            archiveExist: false,
-        };
-    },
-    computed: {
-        /**
-         * Submit button - active or no
-         * @returns {string|boolean}
-         */
-        submitActive() {
-            return this.archiveName && !this.archiveExist;
-        },
-    },
-    methods: {
-        /**
-         * Check the archive name if it exists or not.
-         */
-        validateArchiveName() {
-            if (this.archiveName) {
-                this.archiveExist = this.$store.getters[`fm/${this.activeManager}/fileExist`](
-                    `${this.archiveName}.zip`
-                );
-            } else {
-                this.archiveExist = false;
-            }
-        },
+const archiveName = ref('')
+const archiveExist = ref(false)
+const archiveInput = ref(null)
 
-        /**
-         * Create new archive
-         */
-        createArchive() {
-            this.$store.dispatch('fm/zip', `${this.archiveName}.zip`).then(() => {
-                // close modal window
-                this.hideModal();
-            });
-        },
-    },
-};
+const submitActive = computed(() => archiveName.value && !archiveExist.value)
+
+onMounted(() => {
+    archiveInput.value?.focus()
+})
+
+function validateArchiveName() {
+    if (archiveName.value) {
+        archiveExist.value = fm.fileExist(activeManager.value, `${archiveName.value}.zip`)
+    } else {
+        archiveExist.value = false
+    }
+}
+
+function createArchive() {
+    fm.zip(`${archiveName.value}.zip`).then(() => {
+        hideModal()
+    })
+}
 </script>

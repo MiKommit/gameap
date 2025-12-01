@@ -5,24 +5,14 @@
     </div>
 </template>
 
-<script>
-import Branch from './TreeBranch.vue';
+<script setup>
+import { computed } from 'vue'
+import Branch from './TreeBranch.vue'
+import { useFileManagerStore } from '../../stores/useFileManagerStore.js'
 
-export default {
-    name: 'FolderTree',
-    components: {
-        branch: Branch,
-    },
-    computed: {
-        /**
-         * Selected Disk
-         * @returns {*}
-         */
-        selectedDisk() {
-            return this.$store.getters['fm/selectedDisk'];
-        },
-    },
-};
+const fm = useFileManagerStore()
+
+const selectedDisk = computed(() => fm.selectedDisk)
 </script>
 
 <style lang="scss">

@@ -3,7 +3,7 @@
         <div class="modal-header grid grid-cols-2">
             <h5 class="modal-title w-75 text-truncate">
                 {{ lang.modal.editor.title }}
-                <small class="text-muted pl-3">{{ selectedItem.basename }}</small>
+                <small class="text-muted pl-3">{{ selectedItem?.basename }}</small>
             </h5>
             <button type="button" class="btn-close" aria-label="Close" v-on:click="hideModal">
                 <i class="fa-solid fa-xmark"></i>
@@ -36,120 +36,74 @@
     </div>
 </template>
 
-<script>
+<script setup>
+import { ref, computed, onMounted } from 'vue'
 import { Codemirror } from 'vue-codemirror'
 import { javascript } from '@codemirror/lang-javascript'
 import { xml } from '@codemirror/lang-xml'
-import { json } from "@codemirror/lang-json";
+import { json } from '@codemirror/lang-json'
 import { oneDark } from '@codemirror/theme-one-dark'
 
-import modal from '../mixins/modal';
-import translate from '../../../mixins/translate';
+import { useFileManagerStore } from '../../../stores/useFileManagerStore.js'
+import { useModalStore } from '../../../stores/useModalStore.js'
+import { useTranslate } from '../../../composables/useTranslate.js'
+import { useModal } from '../../../composables/useModal.js'
 
-export default {
-    name: 'TextEditModal',
-    mixins: [modal, translate],
-    components: { Codemirror },
-    data() {
-        return {
-            code: '',
-            extensions: [javascript(), xml(), json(), oneDark],
-            editedCode: '',
-            codeLoaded: false,
-        };
-    },
-    mounted() {
-        // get file for edit
-        this.$store
-            .dispatch('fm/getFile', {
-                disk: this.selectedDisk,
-                path: this.selectedItem.path,
-            })
-            .then((response) => {
-                // add code
-                if (this.selectedItem.extension === 'json') {
-                    this.code = JSON.stringify(response.data, null, 4);
-                } else {
-                    this.code = response.data;
-                }
+const fm = useFileManagerStore()
+const modal = useModalStore()
+const { lang } = useTranslate()
+const { hideModal } = useModal()
 
-                this.codeLoaded = true;
-            })
-            .catch(() => {
-                this.hideModal();
-            });
-    },
-    computed: {
-        /**
-         * Selected disk
-         * @returns {*}
-         */
-        selectedDisk() {
-            return this.$store.getters['fm/selectedDisk'];
-        },
+const code = ref('')
+const extensions = [javascript(), xml(), json(), oneDark]
+const editedCode = ref('')
+const codeLoaded = ref(false)
+const fmCodeEditor = ref(null)
 
-        /**
-         * Selected file
-         * @returns {*}
-         */
-        selectedItem() {
-            return this.$store.getters['fm/selectedItems'][0];
-        },
+const selectedDisk = computed(() => fm.selectedDisk)
+const selectedItem = computed(() => fm.selectedItems[0])
 
-        /**
-         * CodeMirror options
-         * @returns {{mode: *, lineNumbers: boolean, line: boolean, theme: string}}
-         */
-        cmOptions() {
-            return {
-                mode: this.$store.state.fm.settings.textExtensions[this.selectedItem.extension],
-                theme: 'blackboard',
-                lineNumbers: true,
-                line: true,
-            };
-        },
+const editorHeight = computed(() => {
+    if (modal.modalBlockHeight) {
+        return modal.modalBlockHeight - 200
+    }
+    return 300
+})
 
-        /**
-         * Calculate the height of the code editor
-         * @returns {number}
-         */
-        editorHeight() {
-            if (this.$store.state.fm.modal.modalBlockHeight) {
-                return this.$store.state.fm.modal.modalBlockHeight - 200;
+function onChange(value) {
+    editedCode.value = value
+}
+
+function updateFile() {
+    const formData = new FormData()
+    formData.append('disk', selectedDisk.value)
+    formData.append('path', selectedItem.value.dirname)
+    formData.append('file', new Blob([editedCode.value]), selectedItem.value.basename)
+
+    fm.updateFile(formData).then((response) => {
+        if (response.data.result.status === 'success') {
+            hideModal()
+        }
+    })
+}
+
+onMounted(() => {
+    fm.getFile({
+        disk: selectedDisk.value,
+        path: selectedItem.value.path,
+    })
+        .then((response) => {
+            if (selectedItem.value.extension === 'json') {
+                code.value = JSON.stringify(response.data, null, 4)
+            } else {
+                code.value = response.data
             }
-
-            return 300;
-        },
-    },
-    methods: {
-        /**
-         * Update file
-         */
-        updateFile() {
-            const formData = new FormData();
-            // add disk name
-            formData.append('disk', this.selectedDisk);
-            // add path
-            formData.append('path', this.selectedItem.dirname);
-            // add updated file
-            formData.append('file', new Blob([this.editedCode]), this.selectedItem.basename);
-
-            this.$store.dispatch('fm/updateFile', formData).then((response) => {
-                if (response.data.result.status === 'success') {
-                    this.hideModal();
-                }
-            });
-        },
-
-        /**
-         * Edited code
-         * @param value
-         */
-        onChange(value) {
-            this.editedCode = value;
-        },
-    },
-};
+            codeLoaded.value = true
+        })
+        .catch(() => {
+            hideModal()
+        })
+})
 </script>
 
 <style lang="scss">

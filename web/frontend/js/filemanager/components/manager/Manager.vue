@@ -8,34 +8,20 @@
     </div>
 </template>
 
-<script>
-// Components
-import DiskList from './DiskList.vue';
-import BreadCrumb from './BreadCrumb.vue';
-import TableView from './TableView.vue';
-import GridView from './GridView.vue';
+<script setup>
+import { computed } from 'vue'
+import { useManager } from '../../composables/useManager.js'
 
-export default {
-    name: 'Manager',
-    components: {
-        DiskList,
-        BreadCrumb,
-        TableView,
-        GridView,
-    },
-    props: {
-        manager: { type: String, required: true },
-    },
-    computed: {
-        /**
-         * view type - grid or table
-         * @returns {any}
-         */
-        viewType() {
-            return this.$store.state.fm[this.manager].viewType;
-        },
-    },
-};
+import DiskList from './DiskList.vue'
+import BreadCrumb from './BreadCrumb.vue'
+import TableView from './TableView.vue'
+import GridView from './GridView.vue'
+
+const props = defineProps({
+    manager: { type: String, required: true },
+})
+
+const { viewType } = useManager(props.manager)
 </script>
 
 <style lang="scss">

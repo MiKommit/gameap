@@ -1,13 +1,7 @@
-import store from './store.js';
-import FileManager from './FileManager.vue';
+import FileManager from './FileManager.vue'
 
 export default {
-    install: (app, options) => {
-        // eslint-disable-next-line no-console
-        if (!options.store) console.error('Please provide a vuex store!!');
-
-        app.component('file-manager', FileManager);
-
-        options.store.registerModule('fm', store);
+    install: (app) => {
+        app.component('file-manager', FileManager)
     },
-};
+}

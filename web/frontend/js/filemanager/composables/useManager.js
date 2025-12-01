@@ -1,0 +1,224 @@
+import { computed, toValue } from 'vue'
+import { useFileManagerStore } from '../stores/useFileManagerStore.js'
+import { useSettingsStore } from '../stores/useSettingsStore.js'
+import { useModalStore } from '../stores/useModalStore.js'
+
+/**
+ * Composable for manager-specific operations
+ * Replaces the manager.js mixin
+ * @param {string|Ref<string>} managerName - 'left' or 'right'
+ */
+export function useManager(managerName) {
+    const fm = useFileManagerStore()
+    const settings = useSettingsStore()
+    const modal = useModalStore()
+
+    // Helper to get the manager name (supports refs)
+    const getManagerName = () => toValue(managerName)
+
+    // State (computed for reactivity)
+    const manager = computed(() => fm.getManager(getManagerName()))
+    const isActive = computed(() => fm.activeManager === getManagerName())
+
+    const selectedDisk = computed(() => manager.value.selectedDisk)
+    const selectedDirectory = computed(() => manager.value.selectedDirectory)
+    const viewType = computed(() => manager.value.viewType)
+    const sort = computed(() => manager.value.sort)
+    const selected = computed(() => manager.value.selected)
+    const history = computed(() => manager.value.history)
+    const historyPointer = computed(() => manager.value.historyPointer)
+
+    // Getters
+    const files = computed(() => fm.getFiles(getManagerName()))
+    const directories = computed(() => fm.getDirectories(getManagerName()))
+    const filesCount = computed(() => fm.getFilesCount(getManagerName()))
+    const directoriesCount = computed(() => fm.getDirectoriesCount(getManagerName()))
+    const filesSize = computed(() => fm.getFilesSize(getManagerName()))
+    const selectedList = computed(() => fm.getSelectedList(getManagerName()))
+    const selectedCount = computed(() => fm.getSelectedCount(getManagerName()))
+    const selectedFilesSize = computed(() => fm.getSelectedFilesSize(getManagerName()))
+    const breadcrumb = computed(() => fm.getBreadcrumb(getManagerName()))
+
+    const canHistoryBack = computed(() => historyPointer.value > 0)
+    const canHistoryForward = computed(() => historyPointer.value < history.value.length - 1)
+
+    // ACL check
+    const acl = computed(() => settings.acl)
+
+    // File callback
+    const fileCallback = computed(() => fm.fileCallback)
+
+    // Extension checks
+    const imageExtensions = computed(() => settings.imageExtensions)
+    const textExtensions = computed(() => settings.textExtensions)
+    const audioExtensions = computed(() => settings.audioExtensions)
+    const videoExtensions = computed(() => settings.videoExtensions)
+
+    // Actions
+    function selectDirectory(path, addHistory = true) {
+        return fm.selectDirectory(getManagerName(), { path, history: addHistory })
+    }
+
+    function refreshDirectory() {
+        return fm.refreshDirectory(getManagerName())
+    }
+
+    function levelUp() {
+        if (!selectedDirectory.value) return
+
+        const pathParts = selectedDirectory.value.split('/')
+        pathParts.pop()
+
+        if (pathParts.length) {
+            selectDirectory(pathParts.join('/'))
+        } else {
+            selectDirectory(null)
+        }
+    }
+
+    function historyBack() {
+        fm.historyBack(getManagerName())
+    }
+
+    function historyForward() {
+        fm.historyForward(getManagerName())
+    }
+
+    function setView(type) {
+        fm.setManagerView(getManagerName(), type)
+    }
+
+    function sortBy(field, direction) {
+        fm.sortBy(getManagerName(), { field, direction })
+    }
+
+    // Selection actions
+    function addSelection(type, path) {
+        fm.addToSelection(getManagerName(), { type, path })
+    }
+
+    function removeSelection(type, path) {
+        fm.removeFromSelection(getManagerName(), { type, path })
+    }
+
+    function toggleSelect(type, path) {
+        const arr = selected.value[type]
+        if (arr.includes(path)) {
+            removeSelection(type, path)
+        } else {
+            addSelection(type, path)
+        }
+    }
+
+    function singleSelect(type, path) {
+        fm.changeSelected(getManagerName(), { type, path })
+    }
+
+    function clearSelection() {
+        fm.clearSelection(getManagerName())
+    }
+
+    // Check functions
+    function isSelected(type, path) {
+        return selected.value[type].includes(path)
+    }
+
+    function directoryExist(basename) {
+        return fm.directoryExist(getManagerName(), basename)
+    }
+
+    function fileExist(basename) {
+        return fm.fileExist(getManagerName(), basename)
+    }
+
+    // File type checks
+    function isImage(extension) {
+        return imageExtensions.value.includes(extension.toLowerCase())
+    }
+
+    function isText(extension) {
+        return Object.prototype.hasOwnProperty.call(textExtensions.value, extension.toLowerCase())
+    }
+
+    function isAudio(extension) {
+        return audioExtensions.value.includes(extension.toLowerCase())
+    }
+
+    function isVideo(extension) {
+        return videoExtensions.value.includes(extension.toLowerCase())
+    }
+
+    // Modal helpers
+    function openModal(name) {
+        modal.setModalState({ show: true, modalName: name })
+    }
+
+    function closeModal() {
+        modal.clearModal()
+    }
+
+    // Get URL for file
+    function getUrl(disk, path) {
+        return fm.url({ disk, path })
+    }
+
+    // Open PDF
+    function openPDF(disk, path) {
+        fm.openPDF({ disk, path })
+    }
+
+    return {
+        // State
+        manager,
+        isActive,
+        selectedDisk,
+        selectedDirectory,
+        viewType,
+        sort,
+        selected,
+        history,
+        historyPointer,
+        // Getters
+        files,
+        directories,
+        filesCount,
+        directoriesCount,
+        filesSize,
+        selectedList,
+        selectedCount,
+        selectedFilesSize,
+        breadcrumb,
+        canHistoryBack,
+        canHistoryForward,
+        acl,
+        fileCallback,
+        imageExtensions,
+        textExtensions,
+        audioExtensions,
+        videoExtensions,
+        // Actions
+        selectDirectory,
+        refreshDirectory,
+        levelUp,
+        historyBack,
+        historyForward,
+        setView,
+        sortBy,
+        addSelection,
+        removeSelection,
+        toggleSelect,
+        singleSelect,
+        clearSelection,
+        isSelected,
+        directoryExist,
+        fileExist,
+        isImage,
+        isText,
+        isAudio,
+        isVideo,
+        openModal,
+        closeModal,
+        getUrl,
+        openPDF,
+    }
+}

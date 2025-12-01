@@ -48,107 +48,37 @@
     </div>
 </template>
 
-<script>
-import translate from '../../mixins/translate.js';
-import helper from '../../mixins/helper.js';
+<script setup>
+import { computed } from 'vue'
+import { useFileManagerStore } from '../../stores/useFileManagerStore.js'
+import { useMessagesStore } from '../../stores/useMessagesStore.js'
+import { useModalStore } from '../../stores/useModalStore.js'
+import { useTranslate } from '../../composables/useTranslate.js'
+import { useHelper } from '../../composables/useHelper.js'
 
-export default {
-    name: 'InfoBlock',
-    mixins: [translate, helper],
-    computed: {
-        /**
-         * Active manager
-         * @returns {any}
-         */
-        activeManager() {
-            return this.$store.state.fm.activeManager;
-        },
+const fm = useFileManagerStore()
+const messages = useMessagesStore()
+const modal = useModalStore()
+const { lang } = useTranslate()
+const { bytesToHuman } = useHelper()
 
-        /**
-         * Progress bar value - %
-         * @returns {number}
-         */
-        progressBar() {
-            return this.$store.state.fm.messages.actionProgress;
-        },
+const activeManager = computed(() => fm.activeManager)
+const progressBar = computed(() => messages.actionProgress)
+const hasErrors = computed(() => !!messages.errors.length)
+const filesCount = computed(() => fm.getFilesCount(activeManager.value))
+const directoriesCount = computed(() => fm.getDirectoriesCount(activeManager.value))
+const filesSize = computed(() => bytesToHuman(fm.getFilesSize(activeManager.value)))
+const selectedCount = computed(() => fm.getSelectedCount(activeManager.value))
+const selectedFilesSize = computed(() => bytesToHuman(fm.getSelectedFilesSize(activeManager.value)))
+const clipboardType = computed(() => fm.clipboard.type)
+const loadingSpinner = computed(() => messages.loading)
 
-        /**
-         * App has errors
-         * @returns {boolean}
-         */
-        hasErrors() {
-            return !!this.$store.state.fm.messages.errors.length;
-        },
-
-        /**
-         * Files count in selected directory
-         * @returns {*}
-         */
-        filesCount() {
-            return this.$store.getters[`fm/${this.activeManager}/filesCount`];
-        },
-
-        /**
-         * Directories count in selected directory
-         * @returns {*}
-         */
-        directoriesCount() {
-            return this.$store.getters[`fm/${this.activeManager}/directoriesCount`];
-        },
-
-        /**
-         * Files size in selected directory
-         * @returns {*|string}
-         */
-        filesSize() {
-            return this.bytesToHuman(this.$store.getters[`fm/${this.activeManager}/filesSize`]);
-        },
-
-        /**
-         * Count files and folders
-         * @returns {*}
-         */
-        selectedCount() {
-            return this.$store.getters[`fm/${this.activeManager}/selectedCount`];
-        },
-
-        /**
-         * Calculate selected files size
-         * @returns {*|string}
-         */
-        selectedFilesSize() {
-            return this.bytesToHuman(this.$store.getters[`fm/${this.activeManager}/selectedFilesSize`]);
-        },
-
-        /**
-         * Clipboard - action type
-         * @returns {null}
-         */
-        clipboardType() {
-            return this.$store.state.fm.clipboard.type;
-        },
-
-        /**
-         * Spinner
-         * @returns {number}
-         */
-        loadingSpinner() {
-            return this.$store.state.fm.messages.loading;
-        },
-    },
-    methods: {
-        /**
-         * Show modal window
-         * @param modalName
-         */
-        showModal(modalName) {
-            this.$store.commit('fm/modal/setModalState', {
-                modalName,
-                show: true,
-            });
-        },
-    },
-};
+function showModal(modalName) {
+    modal.setModalState({
+        modalName,
+        show: true,
+    })
+}
 </script>
 
 <style lang="scss">

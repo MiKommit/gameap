@@ -12,7 +12,7 @@
                     v-for="(item, index) in breadcrumb"
                     v-bind:key="index"
                     v-bind:class="[breadcrumb.length === index + 1 ? 'active' : '']"
-                    v-on:click="selectDirectory(index)"
+                    v-on:click="handleSelectDirectory(index)"
                 >
                     <div class="flex items-center">
                         <span class="mx-2 text-stone-400">/</span>
@@ -24,70 +24,32 @@
     </div>
 </template>
 
-<script>
-export default {
-    name: 'BreadCrumb',
-    props: {
-        manager: { type: String, required: true },
-    },
-    computed: {
-        /**
-         * Active manager name
-         * @returns {any}
-         */
-        activeManager() {
-            return this.$store.state.fm.activeManager;
-        },
+<script setup>
+import { computed } from 'vue'
+import { useFileManagerStore } from '../../stores/useFileManagerStore.js'
+import { useManager } from '../../composables/useManager.js'
 
-        /**
-         * Selected Disk for this manager
-         * @returns {any}
-         */
-        selectedDisk() {
-            return this.$store.state.fm[this.manager].selectedDisk;
-        },
+const props = defineProps({
+    manager: { type: String, required: true },
+})
 
-        /**
-         * Selected directory for this manager
-         * @returns {any}
-         */
-        selectedDirectory() {
-            return this.$store.state.fm[this.manager].selectedDirectory;
-        },
+const fm = useFileManagerStore()
+const { selectedDisk, selectedDirectory, breadcrumb, selectDirectory } = useManager(props.manager)
 
-        /**
-         * Breadcrumb
-         * @returns {*}
-         */
-        breadcrumb() {
-            return this.$store.getters[`fm/${this.manager}/breadcrumb`];
-        },
-    },
-    methods: {
-        /**
-         * Load selected directory
-         * @param index
-         */
-        selectDirectory(index) {
-            const path = this.breadcrumb.slice(0, index + 1).join('/');
+const activeManager = computed(() => fm.activeManager)
 
-            // only if this path not selected
-            if (path !== this.selectedDirectory) {
-                // load directory
-                this.$store.dispatch(`fm/${this.manager}/selectDirectory`, { path, history: true });
-            }
-        },
+function handleSelectDirectory(index) {
+    const path = breadcrumb.value.slice(0, index + 1).join('/')
+    if (path !== selectedDirectory.value) {
+        selectDirectory(path, true)
+    }
+}
 
-        /**
-         * Select main directory
-         */
-        selectMainDirectory() {
-            if (this.selectedDirectory) {
-                this.$store.dispatch(`fm/${this.manager}/selectDirectory`, { path: null, history: true });
-            }
-        },
-    },
-};
+function selectMainDirectory() {
+    if (selectedDirectory.value) {
+        selectDirectory(null, true)
+    }
+}
 </script>
 
 <style lang="scss">

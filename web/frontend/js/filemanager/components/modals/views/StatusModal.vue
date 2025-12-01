@@ -25,29 +25,19 @@
     </div>
 </template>
 
-<script>
-import modal from '../mixins/modal';
-import translate from '../../../mixins/translate';
+<script setup>
+import { computed } from 'vue'
+import { useMessagesStore } from '../../../stores/useMessagesStore.js'
+import { useTranslate } from '../../../composables/useTranslate.js'
+import { useModal } from '../../../composables/useModal.js'
 
-export default {
-    name: 'StatusModal',
-    mixins: [modal, translate],
-    computed: {
-        /**
-         * Application errors
-         * @returns {any}
-         */
-        errors() {
-            return this.$store.state.fm.messages.errors;
-        },
-    },
-    methods: {
-        /**
-         * Clear all errors
-         */
-        clearErrors() {
-            this.$store.commit('fm/messages/clearErrors');
-        },
-    },
-};
+const messages = useMessagesStore()
+const { lang } = useTranslate()
+const { hideModal } = useModal()
+
+const errors = computed(() => messages.errors)
+
+function clearErrors() {
+    messages.clearErrors()
+}
 </script>

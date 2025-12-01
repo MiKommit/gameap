@@ -34,21 +34,15 @@
     </div>
 </template>
 
-<script>
-import modal from '../mixins/modal';
-import translate from '../../../mixins/translate';
+<script setup>
+import { computed } from 'vue'
+import { useSettingsStore } from '../../../stores/useSettingsStore.js'
+import { useTranslate } from '../../../composables/useTranslate.js'
+import { useModal } from '../../../composables/useModal.js'
 
-export default {
-    name: 'AboutModal',
-    mixins: [modal, translate],
-    computed: {
-        /**
-         * App version
-         * @returns {*}
-         */
-        version() {
-            return this.$store.state.fm.settings.version;
-        },
-    },
-};
+const settings = useSettingsStore()
+const { lang } = useTranslate()
+const { hideModal } = useModal()
+
+const version = computed(() => settings.version)
 </script>

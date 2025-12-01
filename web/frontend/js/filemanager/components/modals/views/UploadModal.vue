@@ -102,88 +102,54 @@
     </div>
 </template>
 
-<script>
-import modal from '../mixins/modal';
-import translate from '../../../mixins/translate';
-import helper from '../../../mixins/helper';
+<script setup>
+import { ref, computed } from 'vue'
+import { useFileManagerStore } from '../../../stores/useFileManagerStore.js'
+import { useMessagesStore } from '../../../stores/useMessagesStore.js'
+import { useTranslate } from '../../../composables/useTranslate.js'
+import { useHelper } from '../../../composables/useHelper.js'
+import { useModal } from '../../../composables/useModal.js'
 
-export default {
-    name: 'UploadModal',
-    mixins: [modal, translate, helper],
-    data() {
-        return {
-            newFiles: [],
-            overwrite: 0,
-        };
-    },
-    computed: {
-        /**
-         * Progress bar value - %
-         * @returns {number}
-         */
-        progressBar() {
-            return this.$store.state.fm.messages.actionProgress;
-        },
+const fm = useFileManagerStore()
+const messages = useMessagesStore()
+const { lang } = useTranslate()
+const { bytesToHuman, mimeToIcon } = useHelper()
+const { hideModal } = useModal()
 
-        /**
-         * Count of files selected for upload
-         * @returns {number}
-         */
-        countFiles() {
-            return this.newFiles.length;
-        },
+const newFiles = ref([])
+const overwrite = ref(0)
 
-        /**
-         * Calculate the size of all files
-         * @returns {*|string}
-         */
-        allFilesSize() {
-            let size = 0;
+const progressBar = computed(() => messages.actionProgress)
+const countFiles = computed(() => newFiles.value.length)
 
-            for (let i = 0; i < this.newFiles.length; i += 1) {
-                size += this.newFiles[i].size;
+const allFilesSize = computed(() => {
+    let size = 0
+    for (let i = 0; i < newFiles.value.length; i += 1) {
+        size += newFiles.value[i].size
+    }
+    return bytesToHuman(size)
+})
+
+function selectFiles(event) {
+    if (event.target.files.length === 0) {
+        newFiles.value = []
+    } else {
+        newFiles.value = event.target.files
+    }
+}
+
+function uploadFiles() {
+    if (countFiles.value) {
+        fm.upload({
+            files: newFiles.value,
+            overwrite: overwrite.value,
+        }).then((response) => {
+            if (response.data.result.status === 'success') {
+                hideModal()
             }
-
-            return this.bytesToHuman(size);
-        },
-    },
-    methods: {
-        /**
-         * Select file or files
-         * @param event
-         */
-        selectFiles(event) {
-            // files selected?
-            if (event.target.files.length === 0) {
-                // no file selected
-                this.newFiles = [];
-            } else {
-                // we have file or files
-                this.newFiles = event.target.files;
-            }
-        },
-
-        /**
-         * Upload new files
-         */
-        uploadFiles() {
-            // if files exists
-            if (this.countFiles) {
-                // upload files
-                this.$store
-                    .dispatch('fm/upload', {
-                        files: this.newFiles,
-                        overwrite: this.overwrite,
-                    })
-                    .then((response) => {
-                        if (response.data.result.status === 'success') {
-                            this.hideModal();
-                        }
-                    });
-            }
-        },
-    },
-};
+        })
+    }
+}
 </script>
 
 <style lang="scss">

@@ -32,206 +32,160 @@
     </div>
 </template>
 
-<script>
-/* eslint-disable import/no-duplicates, no-param-reassign */
-import { mapState } from 'vuex';
-// Axios
-import HTTP from './http/axios.js';
-import EventBus from './emitter.js';
-import {errorNotification, notification} from '@/parts/dialogs.js';
-// Components
-import NavbarBlock from './components/blocks/NavbarBlock.vue';
-import FolderTree from './components/tree/FolderTree.vue';
-import LeftManager from './components/manager/Manager.vue';
-import RightManager from './components/manager/Manager.vue';
-import ModalBlock from './components/modals/ModalBlock.vue';
-import InfoBlock from './components/blocks/InfoBlock.vue';
-import ContextMenu from './components/blocks/ContextMenu.vue';
-// Mixins
-import translate from './mixins/translate.js';
+<script setup>
+import { ref, computed, onMounted, onUnmounted } from 'vue'
+import HTTP from './http/axios.js'
+import EventBus from './emitter.js'
+import { errorNotification, notification } from '@/parts/dialogs.js'
+import { useFileManagerStore } from './stores/useFileManagerStore.js'
+import { useSettingsStore } from './stores/useSettingsStore.js'
+import { useMessagesStore } from './stores/useMessagesStore.js'
+import { useModalStore } from './stores/useModalStore.js'
+import { useTranslate } from './composables/useTranslate.js'
 
-export default {
-    name: 'FileManager',
-    mixins: [translate],
-    components: {
-        NavbarBlock,
-        FolderTree,
-        LeftManager,
-        RightManager,
-        ModalBlock,
-        InfoBlock,
-        ContextMenu,
-    },
-    props: {
-        /**
-         * LFM manual settings
-         */
-        settings: {
-            type: Object,
-            default() {
-                return {};
-            },
+import NavbarBlock from './components/blocks/NavbarBlock.vue'
+import FolderTree from './components/tree/FolderTree.vue'
+import LeftManager from './components/manager/Manager.vue'
+import RightManager from './components/manager/Manager.vue'
+import ModalBlock from './components/modals/ModalBlock.vue'
+import InfoBlock from './components/blocks/InfoBlock.vue'
+import ContextMenu from './components/blocks/ContextMenu.vue'
+
+const props = defineProps({
+    settings: {
+        type: Object,
+        default() {
+            return {}
         },
     },
-    data() {
-        return {
-            interceptorIndex: {
-                request: null,
-                response: null,
-            },
-        };
-    },
-    created() {
-        // manual settings
-        this.$store.commit('fm/settings/manualSettings', this.settings);
+})
 
-        // initiate Axios
-        this.$store.commit('fm/settings/initAxiosSettings');
-        this.setAxiosConfig();
-        this.requestInterceptor();
-        this.responseInterceptor();
+const fm = useFileManagerStore()
+const settings = useSettingsStore()
+const messages = useMessagesStore()
+const modal = useModalStore()
+const { lang } = useTranslate()
 
-        // initialize app settings
-        this.$store.dispatch('fm/initializeApp');
-    },
-    destroyed() {
-        // reset state
-        this.$store.dispatch('fm/resetState');
+const interceptorIndex = ref({
+    request: null,
+    response: null,
+})
 
-        // delete events
-        EventBus.all.clear();
+// Computed
+const windowsConfig = computed(() => settings.windowsConfig)
+const activeManager = computed(() => fm.activeManager)
+const showModal = computed(() => modal.showModal)
+const fullScreen = computed(() => fm.fullScreen)
 
-        // eject interceptors
-        HTTP.interceptors.request.eject(this.interceptorIndex.request);
-        HTTP.interceptors.response.eject(this.interceptorIndex.response);
-    },
-    computed: {
-        ...mapState('fm', {
-            windowsConfig: (state) => state.settings.windowsConfig,
-            activeManager: (state) => state.settings.activeManager,
-            showModal: (state) => state.modal.showModal,
-            fullScreen: (state) => state.settings.fullScreen,
-        }),
-    },
-    methods: {
-        /**
-         * Axios default config
-         */
-        setAxiosConfig() {
-            HTTP.defaults.baseURL = this.$store.getters['fm/settings/baseUrl'];
+// Methods
+function setAxiosConfig() {
+    HTTP.defaults.baseURL = settings.baseUrl
 
-            const headers = this.$store.getters['fm/settings/headers'];
-            Object.keys(headers).forEach((key) => {
-                HTTP.defaults.headers.common[key] = headers[key];
-            });
+    Object.keys(settings.headers).forEach((key) => {
+        HTTP.defaults.headers.common[key] = settings.headers[key]
+    })
+}
+
+function requestInterceptor() {
+    interceptorIndex.value.request = HTTP.interceptors.request.use(
+        (config) => {
+            messages.addLoading()
+            return config
         },
+        (error) => {
+            messages.subtractLoading()
+            return Promise.reject(error)
+        }
+    )
+}
 
-        /**
-         * Add axios request interceptor
-         */
-        requestInterceptor() {
-            this.interceptorIndex.request = HTTP.interceptors.request.use(
-                (config) => {
-                    // loading spinner +
-                    this.$store.commit('fm/messages/addLoading');
+function responseInterceptor() {
+    interceptorIndex.value.response = HTTP.interceptors.response.use(
+        (response) => {
+            messages.subtractLoading()
 
-                    return config;
-                },
-                (error) => {
-                    // loading spinner -
-                    this.$store.commit('fm/messages/subtractLoading');
-                    return Promise.reject(error);
+            if (Object.prototype.hasOwnProperty.call(response.data, 'result')) {
+                if (response.data.result.message) {
+                    const messageText = Object.prototype.hasOwnProperty.call(
+                        lang.value.response,
+                        response.data.result.message
+                    )
+                        ? lang.value.response[response.data.result.message]
+                        : response.data.result.message
+
+                    const notificationType = response.data.result.status === 'success' ? 'success' : 'info'
+                    notification({
+                        content: messageText,
+                        type: notificationType,
+                    })
+
+                    messages.setActionResult({
+                        status: response.data.result.status,
+                        message: messageText,
+                    })
                 }
-            );
-        },
-
-        /**
-         * Add axios response interceptor
-         */
-        responseInterceptor() {
-            this.interceptorIndex.response = HTTP.interceptors.response.use(
-                (response) => {
-                    // loading spinner -
-                    this.$store.commit('fm/messages/subtractLoading');
-
-                    // create notification, if find message text
-                    if (Object.prototype.hasOwnProperty.call(response.data, 'result')) {
-                        if (response.data.result.message) {
-                            const messageText = Object.prototype.hasOwnProperty.call(
-                                this.lang.response,
-                                response.data.result.message
-                            )
-                                ? this.lang.response[response.data.result.message]
-                                : response.data.result.message;
-
-                            const notificationType = response.data.result.status === 'success' ? 'success' : 'info';
-                            notification({
-                                content: messageText,
-                                type: notificationType,
-                            });
-
-                            // set action result
-                            this.$store.commit('fm/messages/setActionResult', {
-                                status: response.data.result.status,
-                                message: messageText,
-                            });
-                        }
-                    }
-
-                    return response;
-                },
-                (error) => {
-                    // loading spinner -
-                    this.$store.commit('fm/messages/subtractLoading');
-
-                    const errorMessage = {
-                        status: 0,
-                        message: '',
-                    };
-
-                    // add message
-                    if (error.response) {
-                        errorMessage.status = error.response.status;
-
-                        if (error.response.data.message) {
-                            errorMessage.message = Object.prototype.hasOwnProperty.call(
-                                this.lang.response,
-                                error.response.data.message
-                            )
-                                ? this.lang.response[error.response.data.message]
-                                : error.response.data.message;
-                        } else {
-                            errorMessage.message = error.response.statusText;
-                        }
-                    } else if (error.request) {
-                        errorMessage.status = error.request.status;
-                        errorMessage.message = error.request.statusText || 'Network error';
-                    } else {
-                        errorMessage.message = error.message;
-                    }
-
-                    // set error message
-                    this.$store.commit('fm/messages/setError', errorMessage);
-
-                    // show notification
-                    errorNotification(errorMessage.message);
-
-                    return Promise.reject(error);
-                }
-            );
-        },
-
-        /**
-         * Select manager (when shown 2 file manager windows)
-         * @param managerName
-         */
-        selectManager(managerName) {
-            if (this.activeManager !== managerName) {
-                this.$store.commit('fm/setActiveManager', managerName);
             }
+
+            return response
         },
-    },
-};
+        (error) => {
+            messages.subtractLoading()
+
+            const errorMessage = {
+                status: 0,
+                message: '',
+            }
+
+            if (error.response) {
+                errorMessage.status = error.response.status
+
+                if (error.response.data.message) {
+                    errorMessage.message = Object.prototype.hasOwnProperty.call(
+                        lang.value.response,
+                        error.response.data.message
+                    )
+                        ? lang.value.response[error.response.data.message]
+                        : error.response.data.message
+                } else {
+                    errorMessage.message = error.response.statusText
+                }
+            } else if (error.request) {
+                errorMessage.status = error.request.status
+                errorMessage.message = error.request.statusText || 'Network error'
+            } else {
+                errorMessage.message = error.message
+            }
+
+            messages.setError(errorMessage)
+            errorNotification(errorMessage.message)
+
+            return Promise.reject(error)
+        }
+    )
+}
+
+function selectManager(managerName) {
+    if (activeManager.value !== managerName) {
+        fm.setActiveManager(managerName)
+    }
+}
+
+// Lifecycle
+onMounted(() => {
+    settings.manualSettings(props.settings)
+    settings.initAxiosSettings()
+    setAxiosConfig()
+    requestInterceptor()
+    responseInterceptor()
+    fm.initializeApp()
+})
+
+onUnmounted(() => {
+    fm.resetState()
+    EventBus.all.clear()
+    HTTP.interceptors.request.eject(interceptorIndex.value.request)
+    HTTP.interceptors.response.eject(interceptorIndex.value.response)
+})
 </script>
 
 <style lang="scss">

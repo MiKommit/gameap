@@ -172,7 +172,7 @@ router.beforeEach(beforeEachRoute)
 
 app.use(router)
 
-app.use(fileManager, {store: store})
+app.use(fileManager)
 
 // Initialize authentication from server session - MUST be after pinia is registered
 const authStore = useAuthStore()

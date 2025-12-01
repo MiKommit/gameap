@@ -58,7 +58,7 @@
             </template>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn btn-danger rounded mr-2" v-bind:disabled="!clipboard.type" v-on:click="resetClipboard">
+            <button type="button" class="btn btn-danger rounded mr-2" v-bind:disabled="!clipboard.type" v-on:click="resetClipboardAction">
                 {{ lang.btn.clear }}
             </button>
             <button type="button" class="btn btn-light rounded" v-on:click="hideModal">{{ lang.btn.cancel }}</button>
@@ -66,67 +66,45 @@
     </div>
 </template>
 
-<script>
-import modal from '../mixins/modal.js';
-import translate from '../../../mixins/translate.js';
-import helper from '../../../mixins/helper.js';
+<script setup>
+import { computed } from 'vue'
+import { useFileManagerStore } from '../../../stores/useFileManagerStore.js'
+import { useTranslate } from '../../../composables/useTranslate.js'
+import { useHelper } from '../../../composables/useHelper.js'
+import { useModal } from '../../../composables/useModal.js'
 
-export default {
-    name: 'ClipboardModal',
-    mixins: [modal, translate, helper],
-    computed: {
-        /**
-         * Clipboard state
-         * @returns {*}
-         */
-        clipboard() {
-            return this.$store.state.fm.clipboard;
-        },
+const fm = useFileManagerStore()
+const { lang } = useTranslate()
+const { extensionToIcon } = useHelper()
+const { hideModal } = useModal()
 
-        /**
-         * Paths and names for directories
-         * @returns {{path: *, name: *}[]}
-         */
-        directories() {
-            return this.$store.state.fm.clipboard.directories.map((item) => ({
-                path: item,
-                name: item.split('/').slice(-1)[0],
-            }));
-        },
+const clipboard = computed(() => fm.clipboard)
 
-        /**
-         * File names, paths and icons
-         * @returns {{path: *, name: *, icon: *}[]}
-         */
-        files() {
-            return this.$store.state.fm.clipboard.files.map((item) => {
-                const name = item.split('/').slice(-1)[0];
-                return {
-                    path: item,
-                    name,
-                    icon: this.extensionToIcon(name.split('.').slice(-1)[0]),
-                };
-            });
-        },
-    },
-    methods: {
-        /**
-         * Delete item from clipboard
-         * @param type
-         * @param path
-         */
-        deleteItem(type, path) {
-            this.$store.commit('fm/truncateClipboard', { type, path });
-        },
+const directories = computed(() =>
+    fm.clipboard.directories.map((item) => ({
+        path: item,
+        name: item.split('/').slice(-1)[0],
+    }))
+)
 
-        /**
-         * Reset clipboard
-         */
-        resetClipboard() {
-            this.$store.commit('fm/resetClipboard');
-        },
-    },
-};
+const files = computed(() =>
+    fm.clipboard.files.map((item) => {
+        const name = item.split('/').slice(-1)[0]
+        return {
+            path: item,
+            name,
+            icon: extensionToIcon(name.split('.').slice(-1)[0]),
+        }
+    })
+)
+
+function deleteItem(type, path) {
+    fm.truncateClipboard({ type, path })
+}
+
+function resetClipboardAction() {
+    fm.resetClipboard()
+}
 </script>
 
 <style lang="scss">

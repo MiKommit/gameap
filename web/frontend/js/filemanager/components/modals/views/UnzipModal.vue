@@ -43,7 +43,7 @@
                     type="text"
                     class="form-control"
                     id="fm-folder-name"
-                    v-focus
+                    ref="folderInput"
                     v-bind:class="{ 'is-invalid': directoryExist }"
                     v-model="directoryName"
                     v-on:keyup="validateDirName"
@@ -63,55 +63,45 @@
     </div>
 </template>
 
-<script>
-import modal from '../mixins/modal.js';
-import translate from '../../../mixins/translate.js';
+<script setup>
+import { ref, computed, watch } from 'vue'
+import { useFileManagerStore } from '../../../stores/useFileManagerStore.js'
+import { useTranslate } from '../../../composables/useTranslate.js'
+import { useModal } from '../../../composables/useModal.js'
 
-export default {
-    name: 'UnzipModal',
-    mixins: [modal, translate],
-    data() {
-        return {
-            createFolder: false,
-            directoryName: '',
-            directoryExist: false,
-        };
-    },
-    computed: {
-        /**
-         * Submit button - active or no
-         * @returns {string|boolean}
-         */
-        submitActive() {
-            if (this.createFolder) {
-                return this.directoryName && !this.directoryExist;
-            }
+const fm = useFileManagerStore()
+const { lang } = useTranslate()
+const { activeManager, hideModal } = useModal()
 
-            return true;
-        },
-    },
-    methods: {
-        /**
-         * Check the folder name if it exists or not.
-         */
-        validateDirName() {
-            if (this.directoryName) {
-                this.directoryExist = this.$store.getters[`fm/${this.activeManager}/directoryExist`](
-                    this.directoryName
-                );
-            } else {
-                this.directoryExist = false;
-            }
-        },
+const createFolder = ref(false)
+const directoryName = ref('')
+const directoryExist = ref(false)
+const folderInput = ref(null)
 
-        /**
-         * Unpack selected archive
-         */
-        unpackArchive() {
-            this.$store.dispatch('fm/unzip', this.createFolder ? this.directoryName : null).then(() => {
-                this.hideModal();
-            });
-        },
-    },
-};
+const submitActive = computed(() => {
+    if (createFolder.value) {
+        return directoryName.value && !directoryExist.value
+    }
+    return true
+})
+
+watch(createFolder, (newVal) => {
+    if (newVal) {
+        setTimeout(() => folderInput.value?.focus(), 0)
+    }
+})
+
+function validateDirName() {
+    if (directoryName.value) {
+        directoryExist.value = fm.directoryExist(activeManager.value, directoryName.value)
+    } else {
+        directoryExist.value = false
+    }
+}
+
+function unpackArchive() {
+    fm.unzip(createFolder.value ? directoryName.value : null).then(() => {
+        hideModal()
+    })
+}
 </script>

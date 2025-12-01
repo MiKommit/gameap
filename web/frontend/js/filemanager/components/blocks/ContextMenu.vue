@@ -8,8 +8,8 @@
         tabindex="-1"
     >
         <ul v-for="(group, index) in menu" v-bind:key="`g-${index}`" class="list-unstyled">
-            <template v-for="(item, index) in group">
-                <li v-if="showMenuItem(item.name)" v-on:click="menuAction(item.name)" v-bind:key="`i-${index}`">
+            <template v-for="(item, idx) in group">
+                <li v-if="showMenuItem(item.name)" v-on:click="menuAction(item.name)" v-bind:key="`i-${idx}`">
                     <i v-bind:class="item.icon" />
                     {{ lang.contextMenu[item.name] }}
                 </li>
@@ -18,124 +18,294 @@
     </div>
 </template>
 
-<script>
-import EventBus from '../../emitter.js';
-import translate from '../../mixins/translate.js';
-import contextMenu from './mixins/contextMenu.js';
-import contextMenuRules from './mixins/contextMenuRules.js';
-import contextMenuActions from './mixins/contextMenuActions.js';
+<script setup>
+import { ref, computed, onMounted, nextTick } from 'vue'
+import EventBus from '../../emitter.js'
+import { useFileManagerStore } from '../../stores/useFileManagerStore.js'
+import { useSettingsStore } from '../../stores/useSettingsStore.js'
+import { useModalStore } from '../../stores/useModalStore.js'
+import { useTranslate } from '../../composables/useTranslate.js'
+import HTTP from '../../http/get.js'
 
-export default {
-    name: 'ContextMenu',
-    mixins: [translate, contextMenu, contextMenuRules, contextMenuActions],
-    data() {
-        return {
-            menuVisible: false,
-            menuStyle: {
-                top: 0,
-                left: 0,
-            },
-        };
-    },
-    mounted() {
-        /**
-         * Listen events
-         * 'contextMenu'
-         */
-        EventBus.on('contextMenu', (event) => this.showMenu(event));
-    },
-    computed: {
-        /**
-         * Context menu items
-         * @returns {*}
-         */
-        menu() {
-            return this.$store.state.fm.settings.contextMenu;
-        },
-    },
-    methods: {
-        /**
-         * Show context menu
-         * @param event
-         */
-        showMenu(event) {
-            if (this.selectedItems) {
-                this.menuVisible = true;
+const fm = useFileManagerStore()
+const settings = useSettingsStore()
+const modal = useModalStore()
+const { lang } = useTranslate()
 
-                // focus on menu
-                this.$nextTick(() => {
-                    this.$refs.contextMenu.focus();
-                    // set menu params
-                    this.setMenu(event.pageY, event.pageX);
-                });
-            }
-        },
+const contextMenu = ref(null)
+const menuVisible = ref(false)
+const menuStyle = ref({
+    top: 0,
+    left: 0,
+})
 
-        /**
-         * Set context menu coordinates
-         * @param top
-         * @param left
-         */
-        setMenu(top, left) {
-            // get parent el (.fm-body)
-            const el = this.$refs.contextMenu.parentNode;
+const menu = computed(() => settings.contextMenu)
+const selectedDisk = computed(() => fm.selectedDisk)
+const selectedItems = computed(() => fm.selectedItems)
+const selectedDiskDriver = computed(() => fm.disks[selectedDisk.value]?.driver)
+const multiSelect = computed(() => selectedItems.value.length > 1)
+const firstItemType = computed(() => selectedItems.value[0]?.type)
 
-            // get parent el size
-            const elSize = el.getBoundingClientRect();
+function canView(extension) {
+    if (!extension) return false
+    return settings.imageExtensions.includes(extension.toLowerCase())
+}
 
-            // actual coordinates of the block
-            const elY = window.scrollY + elSize.top;
-            const elX = window.scrollX + elSize.left;
+function canEdit(extension) {
+    if (!extension) return false
+    return Object.keys(settings.textExtensions).includes(extension.toLowerCase())
+}
 
-            // calculate the preliminary coordinates
-            let menuY = top - elY;
-            let menuX = left - elX;
+function canAudioPlay(extension) {
+    if (!extension) return false
+    return settings.audioExtensions.includes(extension.toLowerCase())
+}
 
-            // calculate max X and Y coordinates
-            const maxY = elY + (el.offsetHeight - this.$refs.contextMenu.offsetHeight - 25);
-            const maxX = elX + (el.offsetWidth - this.$refs.contextMenu.offsetWidth - 25);
+function canVideoPlay(extension) {
+    if (!extension) return false
+    return settings.videoExtensions.includes(extension.toLowerCase())
+}
 
-            if (top > maxY) menuY = maxY - elY;
-            if (left > maxX) menuX = maxX - elX;
+function isZip(extension) {
+    if (!extension) return false
+    return extension.toLowerCase() === 'zip'
+}
 
-            // set coordinates
-            this.menuStyle.top = `${menuY}px`;
-            this.menuStyle.left = `${menuX}px`;
-        },
+// Rules
+function openRule() {
+    return !multiSelect.value && firstItemType.value === 'dir'
+}
 
-        /**
-         * Close context menu
-         */
-        closeMenu() {
-            this.menuVisible = false;
-        },
+function audioPlayRule() {
+    return (
+        selectedItems.value.every((elem) => elem.type === 'file') &&
+        selectedItems.value.every((elem) => canAudioPlay(elem.extension))
+    )
+}
 
-        /**
-         * Show context menu item
-         * @param name
-         * @returns {*}
-         */
-        showMenuItem(name) {
-            if (Object.prototype.hasOwnProperty.call(this, `${name}Rule`)) {
-                return this[`${name}Rule`]();
-            }
+function videoPlayRule() {
+    return !multiSelect.value && canVideoPlay(selectedItems.value[0]?.extension)
+}
 
-            return false;
-        },
+function viewRule() {
+    return !multiSelect.value && firstItemType.value === 'file' && canView(selectedItems.value[0]?.extension)
+}
 
-        /**
-         * Call actions when clicking the context menu
-         * @param name
-         */
-        menuAction(name) {
-            if (Object.prototype.hasOwnProperty.call(this, `${name}Action`)) {
-                this[`${name}Action`]();
-            }
-            // close context menu
-            this.closeMenu();
-        },
-    },
-};
+function editRule() {
+    return !multiSelect.value && firstItemType.value === 'file' && canEdit(selectedItems.value[0]?.extension)
+}
+
+function selectRule() {
+    return !multiSelect.value && firstItemType.value === 'file' && fm.fileCallback
+}
+
+function downloadRule() {
+    return !multiSelect.value && firstItemType.value === 'file'
+}
+
+function copyRule() {
+    return true
+}
+
+function cutRule() {
+    return true
+}
+
+function renameRule() {
+    return !multiSelect.value
+}
+
+function pasteRule() {
+    return !!fm.clipboard.type
+}
+
+function zipRule() {
+    return selectedDiskDriver.value === 'local'
+}
+
+function unzipRule() {
+    return (
+        selectedDiskDriver.value === 'local' &&
+        !multiSelect.value &&
+        firstItemType.value === 'file' &&
+        isZip(selectedItems.value[0]?.extension)
+    )
+}
+
+function deleteRule() {
+    return true
+}
+
+function propertiesRule() {
+    return !multiSelect.value
+}
+
+const rules = {
+    open: openRule,
+    audioPlay: audioPlayRule,
+    videoPlay: videoPlayRule,
+    view: viewRule,
+    edit: editRule,
+    select: selectRule,
+    download: downloadRule,
+    copy: copyRule,
+    cut: cutRule,
+    rename: renameRule,
+    paste: pasteRule,
+    zip: zipRule,
+    unzip: unzipRule,
+    delete: deleteRule,
+    properties: propertiesRule,
+}
+
+// Actions
+function openAction() {
+    fm.selectDirectory(fm.activeManager, {
+        path: selectedItems.value[0].path,
+        history: true,
+    })
+}
+
+function audioPlayAction() {
+    modal.setModalState({ modalName: 'AudioPlayerModal', show: true })
+}
+
+function videoPlayAction() {
+    modal.setModalState({ modalName: 'VideoPlayerModal', show: true })
+}
+
+function viewAction() {
+    modal.setModalState({ modalName: 'PreviewModal', show: true })
+}
+
+function editAction() {
+    modal.setModalState({ modalName: 'TextEditModal', show: true })
+}
+
+function selectAction() {
+    fm.url({ disk: selectedDisk.value, path: selectedItems.value[0].path }).then((response) => {
+        if (response.data.result.status === 'success') {
+            fm.fileCallback(response.data.url)
+        }
+    })
+}
+
+function downloadAction() {
+    const tempLink = document.createElement('a')
+    tempLink.style.display = 'none'
+    tempLink.setAttribute('download', selectedItems.value[0].basename)
+
+    HTTP.download(selectedDisk.value, selectedItems.value[0].path).then((response) => {
+        tempLink.href = window.URL.createObjectURL(new Blob([response.data]))
+        document.body.appendChild(tempLink)
+        tempLink.click()
+        document.body.removeChild(tempLink)
+    })
+}
+
+function copyAction() {
+    fm.toClipboard('copy')
+}
+
+function cutAction() {
+    fm.toClipboard('cut')
+}
+
+function renameAction() {
+    modal.setModalState({ modalName: 'RenameModal', show: true })
+}
+
+function pasteAction() {
+    fm.paste()
+}
+
+function zipAction() {
+    modal.setModalState({ modalName: 'ZipModal', show: true })
+}
+
+function unzipAction() {
+    modal.setModalState({ modalName: 'UnzipModal', show: true })
+}
+
+function deleteAction() {
+    modal.setModalState({ modalName: 'DeleteModal', show: true })
+}
+
+function propertiesAction() {
+    modal.setModalState({ modalName: 'PropertiesModal', show: true })
+}
+
+const actions = {
+    open: openAction,
+    audioPlay: audioPlayAction,
+    videoPlay: videoPlayAction,
+    view: viewAction,
+    edit: editAction,
+    select: selectAction,
+    download: downloadAction,
+    copy: copyAction,
+    cut: cutAction,
+    rename: renameAction,
+    paste: pasteAction,
+    zip: zipAction,
+    unzip: unzipAction,
+    delete: deleteAction,
+    properties: propertiesAction,
+}
+
+function showMenu(event) {
+    if (selectedItems.value.length) {
+        menuVisible.value = true
+
+        nextTick(() => {
+            contextMenu.value?.focus()
+            setMenu(event.pageY, event.pageX)
+        })
+    }
+}
+
+function setMenu(top, left) {
+    const el = contextMenu.value?.parentNode
+    if (!el) return
+
+    const elSize = el.getBoundingClientRect()
+    const elY = window.scrollY + elSize.top
+    const elX = window.scrollX + elSize.left
+
+    let menuY = top - elY
+    let menuX = left - elX
+
+    const maxY = elY + (el.offsetHeight - contextMenu.value.offsetHeight - 25)
+    const maxX = elX + (el.offsetWidth - contextMenu.value.offsetWidth - 25)
+
+    if (top > maxY) menuY = maxY - elY
+    if (left > maxX) menuX = maxX - elX
+
+    menuStyle.value.top = `${menuY}px`
+    menuStyle.value.left = `${menuX}px`
+}
+
+function closeMenu() {
+    menuVisible.value = false
+}
+
+function showMenuItem(name) {
+    if (rules[name]) {
+        return rules[name]()
+    }
+    return false
+}
+
+function menuAction(name) {
+    if (actions[name]) {
+        actions[name]()
+    }
+    closeMenu()
+}
+
+onMounted(() => {
+    EventBus.on('contextMenu', (event) => showMenu(event))
+})
 </script>
 
 <style lang="scss">

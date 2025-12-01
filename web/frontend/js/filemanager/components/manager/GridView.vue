@@ -15,7 +15,7 @@
                 v-bind:title="directory.basename"
                 v-bind:class="{ active: checkSelect('directories', directory.path) }"
                 v-on:click="selectItem('directories', directory.path, $event)"
-                v-on:dblclick.stop="selectDirectory(directory.path)"
+                v-on:dblclick.stop="handleSelectDirectory(directory.path)"
                 v-on:contextmenu.prevent="contextMenu(directory, $event)"
             >
                 <div class="fm-item-icon">
@@ -49,56 +49,121 @@
     </div>
 </template>
 
-<script>
-import translate from '../../mixins/translate';
-import helper from '../../mixins/helper';
-import managerHelper from './mixins/manager';
-import Thumbnail from './Thumbnail.vue';
+<script setup>
+import { ref, computed, onMounted, watch } from 'vue'
+import EventBus from '../../emitter.js'
+import { useFileManagerStore } from '../../stores/useFileManagerStore.js'
+import { useSettingsStore } from '../../stores/useSettingsStore.js'
+import { useModalStore } from '../../stores/useModalStore.js'
+import { useManager } from '../../composables/useManager.js'
+import { useHelper } from '../../composables/useHelper.js'
+import Thumbnail from './Thumbnail.vue'
 
-export default {
-    name: 'GridView',
-    components: { Thumbnail },
-    mixins: [translate, helper, managerHelper],
-    data() {
-        return {
-            disk: '',
-        };
-    },
-    props: {
-        manager: { type: String, required: true },
-    },
-    mounted() {
-        this.disk = this.selectedDisk;
-    },
-    beforeUpdate() {
-        // if disk changed
-        if (this.disk !== this.selectedDisk) {
-            this.disk = this.selectedDisk;
+const props = defineProps({
+    manager: { type: String, required: true },
+})
+
+const fm = useFileManagerStore()
+const settings = useSettingsStore()
+const modal = useModalStore()
+const { bytesToHuman, extensionToIcon } = useHelper()
+
+const {
+    selectedDisk,
+    selectedDirectory,
+    files,
+    directories,
+    selected,
+    selectDirectory,
+} = useManager(props.manager)
+
+const disk = ref('')
+
+const acl = computed(() => settings.acl)
+const isRootPath = computed(() => selectedDirectory.value === null)
+const imageExtensions = computed(() => settings.imageExtensions)
+
+onMounted(() => {
+    disk.value = selectedDisk.value
+})
+
+watch(selectedDisk, (newVal) => {
+    if (disk.value !== newVal) {
+        disk.value = newVal
+    }
+})
+
+function thisImage(extension) {
+    if (!extension) return false
+    return imageExtensions.value.includes(extension.toLowerCase())
+}
+
+function levelUp() {
+    if (selectedDirectory.value) {
+        const pathUp = selectedDirectory.value.split('/').slice(0, -1).join('/')
+        selectDirectory(pathUp || null, true)
+    }
+}
+
+function checkSelect(type, path) {
+    return selected.value[type].includes(path)
+}
+
+function selectItem(type, path, event) {
+    const alreadySelected = selected.value[type].includes(path)
+
+    if (event.ctrlKey || event.metaKey) {
+        if (!alreadySelected) {
+            fm.addToSelection(props.manager, { type, path })
+        } else {
+            fm.removeFromSelection(props.manager, { type, path })
         }
-    },
-    computed: {
-        /**
-         * Image extensions list
-         * @returns {*}
-         */
-        imageExtensions() {
-            return this.$store.state.fm.settings.imageExtensions;
-        },
-    },
-    methods: {
-        /**
-         * Check file extension (image or no)
-         * @param extension
-         * @returns {boolean}
-         */
-        thisImage(extension) {
-            // extension not found
-            if (!extension) return false;
+    }
 
-            return this.imageExtensions.includes(extension.toLowerCase());
-        },
-    },
-};
+    if (!event.ctrlKey && !alreadySelected && !event.metaKey) {
+        fm.changeSelected(props.manager, { type, path })
+    }
+}
+
+function contextMenu(item, event) {
+    const type = item.type === 'dir' ? 'directories' : 'files'
+    const alreadySelected = selected.value[type].includes(item.path)
+
+    if (!alreadySelected) {
+        fm.changeSelected(props.manager, { type, path: item.path })
+    }
+
+    EventBus.emit('contextMenu', event)
+}
+
+function handleSelectDirectory(path) {
+    selectDirectory(path, true)
+}
+
+function selectAction(path, extension) {
+    if (fm.fileCallback) {
+        fm.url({ disk: selectedDisk.value, path }).then((response) => {
+            if (response.data.result.status === 'success') {
+                fm.fileCallback(response.data.url)
+            }
+        })
+        return
+    }
+
+    if (!extension) return
+
+    if (settings.imageExtensions.includes(extension.toLowerCase())) {
+        modal.setModalState({ modalName: 'PreviewModal', show: true })
+    } else if (Object.keys(settings.textExtensions).includes(extension.toLowerCase())) {
+        modal.setModalState({ modalName: 'TextEditModal', show: true })
+    } else if (settings.audioExtensions.includes(extension.toLowerCase())) {
+        modal.setModalState({ modalName: 'AudioPlayerModal', show: true })
+    } else if (settings.videoExtensions.includes(extension.toLowerCase())) {
+        modal.setModalState({ modalName: 'VideoPlayerModal', show: true })
+    } else if (extension.toLowerCase() === 'pdf') {
+        fm.openPDF({ disk: selectedDisk.value, path })
+    }
+}
 </script>
 
 <style lang="scss">

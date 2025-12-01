@@ -13,7 +13,7 @@
                     type="text"
                     class="form-control"
                     id="fm-folder-name"
-                    v-focus
+                    ref="folderNameInput"
                     v-bind:class="{ 'is-invalid': directoryExist }"
                     v-model="directoryName"
                     v-on:keyup="validateDirName"
@@ -32,55 +32,39 @@
     </div>
 </template>
 
-<script>
-import modal from '../mixins/modal.js';
-import translate from '../../../mixins/translate.js';
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useFileManagerStore } from '../../../stores/useFileManagerStore.js'
+import { useTranslate } from '../../../composables/useTranslate.js'
+import { useModal } from '../../../composables/useModal.js'
 
-export default {
-    name: 'NewFolderModal',
-    mixins: [modal, translate],
-    data() {
-        return {
-            // name for new directory
-            directoryName: '',
+const fm = useFileManagerStore()
+const { lang } = useTranslate()
+const { activeManager, hideModal } = useModal()
 
-            // directory exist
-            directoryExist: false,
-        };
-    },
-    computed: {
-        /**
-         * Submit button - active or no
-         * @returns {string|boolean}
-         */
-        submitActive() {
-            return this.directoryName && !this.directoryExist;
-        },
-    },
-    methods: {
-        /**
-         * Check the folder name if it exists or not.
-         */
-        validateDirName() {
-            if (this.directoryName) {
-                this.directoryExist = this.$store.getters[`fm/${this.activeManager}/directoryExist`](
-                    this.directoryName
-                );
-            } else {
-                this.directoryExist = false;
-            }
-        },
+const directoryName = ref('')
+const directoryExist = ref(false)
+const folderNameInput = ref(null)
 
-        /**
-         * Create new directory
-         */
-        addFolder() {
-            this.$store.dispatch('fm/createDirectory', this.directoryName).then((response) => {
-                if (response.data.result.status === 'success') {
-                    this.hideModal();
-                }
-            });
-        },
-    },
-};
+const submitActive = computed(() => directoryName.value && !directoryExist.value)
+
+onMounted(() => {
+    folderNameInput.value?.focus()
+})
+
+function validateDirName() {
+    if (directoryName.value) {
+        directoryExist.value = fm.directoryExist(activeManager.value, directoryName.value)
+    } else {
+        directoryExist.value = false
+    }
+}
+
+function addFolder() {
+    fm.createDirectory(directoryName.value).then((response) => {
+        if (response.data.result.status === 'success') {
+            hideModal()
+        }
+    })
+}
 </script>

@@ -76,79 +76,36 @@
     </div>
 </template>
 
-<script>
-import modal from '../mixins/modal.js';
-import translate from '../../../mixins/translate.js';
-import helper from '../../../mixins/helper.js';
-import {notification} from '@/parts/dialogs.js';
+<script setup>
+import { computed } from 'vue'
+import { useFileManagerStore } from '../../../stores/useFileManagerStore.js'
+import { useTranslate } from '../../../composables/useTranslate.js'
+import { useHelper } from '../../../composables/useHelper.js'
+import { useModal } from '../../../composables/useModal.js'
+import { notification } from '@/parts/dialogs.js'
 
-export default {
-    name: 'PropertiesModal',
-    mixins: [modal, translate, helper],
-    data() {
-        return {
-            url: null,
-        };
-    },
-    computed: {
-        /**
-         * Selected disk
-         * @returns {*}
-         */
-        selectedDisk() {
-            return this.$store.getters['fm/selectedDisk'];
-        },
+const fm = useFileManagerStore()
+const { lang } = useTranslate()
+const { bytesToHuman, timestampToDate } = useHelper()
+const { hideModal } = useModal()
 
-        /**
-         * Selected file
-         * @returns {*}
-         */
-        selectedItem() {
-            return this.$store.getters['fm/selectedItems'][0];
-        },
-    },
-    methods: {
-        /**
-         * Get URL
-         */
-        getUrl() {
-            this.$store
-                .dispatch('fm/url', {
-                    disk: this.selectedDisk,
-                    path: this.selectedItem.path,
-                })
-                .then((response) => {
-                    if (response.data.result.status === 'success') {
-                        this.url = response.data.url;
-                    }
-                });
-        },
+const selectedDisk = computed(() => fm.selectedDisk)
+const selectedItem = computed(() => fm.selectedItems[0])
 
-        /**
-         * Copy text to clipboard
-         * @param text
-         */
-        copyToClipboard(text) {
-            // create input
-            const copyInputHelper = document.createElement('input');
-            copyInputHelper.className = 'copyInputHelper';
-            document.body.appendChild(copyInputHelper);
-            // add text
-            copyInputHelper.value = text;
-            copyInputHelper.select();
-            // copy text to clipboard
-            document.execCommand('copy');
-            // clear
-            document.body.removeChild(copyInputHelper);
+function copyToClipboard(text) {
+    const copyInputHelper = document.createElement('input')
+    copyInputHelper.className = 'copyInputHelper'
+    document.body.appendChild(copyInputHelper)
+    copyInputHelper.value = text
+    copyInputHelper.select()
+    document.execCommand('copy')
+    document.body.removeChild(copyInputHelper)
 
-            // Notification
-            notification({
-                content: this.lang.notifications.copyToClipboard,
-                type: 'success',
-            });
-        },
-    },
-};
+    notification({
+        content: lang.value.notifications.copyToClipboard,
+        type: 'success',
+    })
+}
 </script>
 
 <style lang="scss">
