@@ -115,7 +115,7 @@
 
 <script>
 import translate from '../../mixins/translate.js';
-import EventBus from '../../emitter.js';
+import {notification} from '@/parts/dialogs.js';
 
 export default {
     name: 'NavbarBlock',
@@ -230,14 +230,14 @@ export default {
 
             // show notification
             if (type === 'cut') {
-                EventBus.emit('addNotification', {
-                    status: 'success',
-                    message: this.lang.notifications.cutToClipboard,
+                notification({
+                    content: this.lang.notifications.cutToClipboard,
+                    type: 'success',
                 });
             } else if (type === 'copy') {
-                EventBus.emit('addNotification', {
-                    status: 'success',
-                    message: this.lang.notifications.copyToClipboard,
+                notification({
+                    content: this.lang.notifications.copyToClipboard,
+                    type: 'success',
                 });
             }
         },

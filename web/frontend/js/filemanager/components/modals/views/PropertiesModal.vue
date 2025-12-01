@@ -80,7 +80,7 @@
 import modal from '../mixins/modal.js';
 import translate from '../../../mixins/translate.js';
 import helper from '../../../mixins/helper.js';
-import EventBus from '../../../emitter.js';
+import {notification} from '@/parts/dialogs.js';
 
 export default {
     name: 'PropertiesModal',
@@ -142,9 +142,9 @@ export default {
             document.body.removeChild(copyInputHelper);
 
             // Notification
-            EventBus.emit('addNotification', {
-                status: 'success',
-                message: this.lang.notifications.copyToClipboard,
+            notification({
+                content: this.lang.notifications.copyToClipboard,
+                type: 'success',
             });
         },
     },
