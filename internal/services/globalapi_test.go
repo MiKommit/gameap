@@ -23,23 +23,34 @@ func TestGlobalAPIService_Games(t *testing.T) {
 		validate       func(t *testing.T, games []domain.GlobalAPIGame)
 	}{
 		{
-			name:           "successful response",
+			name:           "successful_response_with_full_game_data",
 			mockStatusCode: http.StatusOK,
 			mockResponse: domain.GlobalAPIResponse[[]domain.GlobalAPIGame]{
 				Data: []domain.GlobalAPIGame{
 					{
-						Code:              "cstrike",
-						StartCode:         "cstrike",
-						Name:              "Counter-Strike 1.6",
-						Engine:            "GoldSource",
-						EngineVersion:     "1",
-						SteamAppIDLinux:   90,
-						SteamAppIDWindows: 0,
+						Code:                  "cstrike",
+						StartCode:             "cstrike",
+						Name:                  "Counter-Strike 1.6",
+						Engine:                "GoldSource",
+						EngineVersion:         "1",
+						SteamAppIDLinux:       90,
+						SteamAppIDWindows:     0,
+						RemoteRepositoryLinux: "http://files.gameap.ru/cstrike-1.6/hlcs_base.tar.xz",
 						Mods: []domain.GlobalAPIGameMod{
 							{
-								ID:       3,
-								GameCode: "cstrike",
-								Name:     "Classic (Standart)",
+								ID:            3,
+								GameCode:      "cstrike",
+								Name:          "Classic (Standart)",
+								StartCmdLinux: "./hlds_run -game cstrike +ip {ip} +port {port}",
+								KickCmd:       "kick #{id}",
+								FastRcon: domain.GameModFastRconList{
+									{Info: "Status", Command: "status"},
+									{Info: "Stats", Command: "stats"},
+								},
+								Vars: domain.GameModVarList{
+									{Var: "default_map", Default: "de_dust2", Info: "Default Map", AdminVar: false},
+									{Var: "maxplayers", Default: "32", Info: "Maximum players", AdminVar: false},
+								},
 							},
 						},
 					},
@@ -52,14 +63,155 @@ func TestGlobalAPIService_Games(t *testing.T) {
 				t.Helper()
 
 				require.Len(t, games, 1)
-				assert.Equal(t, "cstrike", games[0].Code)
-				assert.Equal(t, "Counter-Strike 1.6", games[0].Name)
-				assert.Len(t, games[0].Mods, 1)
-				assert.Equal(t, "Classic (Standart)", games[0].Mods[0].Name)
+
+				game := games[0]
+				assert.Equal(t, "cstrike", game.Code)
+				assert.Equal(t, "cstrike", game.StartCode)
+				assert.Equal(t, "Counter-Strike 1.6", game.Name)
+				assert.Equal(t, "GoldSource", game.Engine)
+				assert.Equal(t, "1", game.EngineVersion)
+				assert.Equal(t, uint(90), game.SteamAppIDLinux)
+				assert.Equal(t, uint(0), game.SteamAppIDWindows)
+				assert.Equal(t, "http://files.gameap.ru/cstrike-1.6/hlcs_base.tar.xz", game.RemoteRepositoryLinux)
+
+				require.Len(t, game.Mods, 1)
+				mod := game.Mods[0]
+				assert.Equal(t, uint(3), mod.ID)
+				assert.Equal(t, "cstrike", mod.GameCode)
+				assert.Equal(t, "Classic (Standart)", mod.Name)
+				assert.Equal(t, "./hlds_run -game cstrike +ip {ip} +port {port}", mod.StartCmdLinux)
+				assert.Equal(t, "kick #{id}", mod.KickCmd)
+
+				require.Len(t, mod.FastRcon, 2)
+				assert.Equal(t, "Status", mod.FastRcon[0].Info)
+				assert.Equal(t, "status", mod.FastRcon[0].Command)
+
+				require.Len(t, mod.Vars, 2)
+				assert.Equal(t, "default_map", mod.Vars[0].Var)
+				assert.Equal(t, domain.GameModVarDefault("de_dust2"), mod.Vars[0].Default)
 			},
 		},
 		{
-			name:           "API error - success=false",
+			name:           "successful_response_with_multiple_games",
+			mockStatusCode: http.StatusOK,
+			mockResponse: domain.GlobalAPIResponse[[]domain.GlobalAPIGame]{
+				Data: []domain.GlobalAPIGame{
+					{
+						Code:            "7d2d",
+						StartCode:       "7d2d",
+						Name:            "7 Days to Die",
+						Engine:          "7d2d",
+						EngineVersion:   "1.0",
+						SteamAppIDLinux: 294420,
+						Mods: []domain.GlobalAPIGameMod{
+							{
+								ID:            11,
+								GameCode:      "7d2d",
+								Name:          "Default",
+								StartCmdLinux: "./startserver.sh -configfile=serverconfig.xml",
+							},
+						},
+					},
+					{
+						Code:            "arma3",
+						StartCode:       "arma3",
+						Name:            "Arma 3",
+						Engine:          "armedassault3",
+						EngineVersion:   "3",
+						SteamAppIDLinux: 233780,
+						Mods:            []domain.GlobalAPIGameMod{},
+					},
+					{
+						Code:                    "minecraft",
+						StartCode:               "minecraft",
+						Name:                    "Minecraft",
+						Engine:                  "Minecraft",
+						EngineVersion:           "1",
+						SteamAppIDLinux:         0,
+						RemoteRepositoryLinux:   "http://packages.gameap.com/mcrun/mcrun-v1.2.0-linux-amd64.tar.gz",
+						RemoteRepositoryWindows: "http://packages.gameap.com/mcrun/mcrun-v1.2.0-windows-amd64.zip",
+						Mods: []domain.GlobalAPIGameMod{
+							{
+								ID:       5,
+								GameCode: "minecraft",
+								Name:     "Multicore",
+								Vars: domain.GameModVarList{
+									{Var: "version", Default: "1.20.4", Info: "Minecraft version", AdminVar: false},
+									{Var: "memory", Default: "1G", Info: "Memory. Max heap size (Xmx)", AdminVar: false},
+								},
+							},
+						},
+					},
+				},
+				Message: "Games retrieved successfully",
+				Success: true,
+			},
+			wantErr: false,
+			validate: func(t *testing.T, games []domain.GlobalAPIGame) {
+				t.Helper()
+
+				require.Len(t, games, 3)
+
+				assert.Equal(t, "7d2d", games[0].Code)
+				assert.Equal(t, "7 Days to Die", games[0].Name)
+				require.Len(t, games[0].Mods, 1)
+
+				assert.Equal(t, "arma3", games[1].Code)
+				assert.Equal(t, "Arma 3", games[1].Name)
+				assert.Empty(t, games[1].Mods)
+
+				assert.Equal(t, "minecraft", games[2].Code)
+				assert.Equal(t, "Minecraft", games[2].Name)
+				assert.Equal(t, "http://packages.gameap.com/mcrun/mcrun-v1.2.0-linux-amd64.tar.gz", games[2].RemoteRepositoryLinux)
+				assert.Equal(t, "http://packages.gameap.com/mcrun/mcrun-v1.2.0-windows-amd64.zip", games[2].RemoteRepositoryWindows)
+				require.Len(t, games[2].Mods, 1)
+				require.Len(t, games[2].Mods[0].Vars, 2)
+			},
+		},
+		{
+			name:           "successful_response_game_with_empty_mods",
+			mockStatusCode: http.StatusOK,
+			mockResponse: domain.GlobalAPIResponse[[]domain.GlobalAPIGame]{
+				Data: []domain.GlobalAPIGame{
+					{
+						Code:            "arma2",
+						StartCode:       "arma2",
+						Name:            "Arma 2",
+						Engine:          "armedassault2",
+						EngineVersion:   "2",
+						SteamAppIDLinux: 33905,
+						Mods:            []domain.GlobalAPIGameMod{},
+					},
+				},
+				Message: "Games retrieved successfully",
+				Success: true,
+			},
+			wantErr: false,
+			validate: func(t *testing.T, games []domain.GlobalAPIGame) {
+				t.Helper()
+
+				require.Len(t, games, 1)
+				assert.Equal(t, "arma2", games[0].Code)
+				assert.Equal(t, "Arma 2", games[0].Name)
+				assert.Empty(t, games[0].Mods)
+			},
+		},
+		{
+			name:           "successful_response_empty_games_list",
+			mockStatusCode: http.StatusOK,
+			mockResponse: domain.GlobalAPIResponse[[]domain.GlobalAPIGame]{
+				Data:    []domain.GlobalAPIGame{},
+				Message: "No games found",
+				Success: true,
+			},
+			wantErr: false,
+			validate: func(t *testing.T, games []domain.GlobalAPIGame) {
+				t.Helper()
+				assert.Empty(t, games)
+			},
+		},
+		{
+			name:           "API_returns_success_false",
 			mockStatusCode: http.StatusOK,
 			mockResponse: domain.GlobalAPIResponse[[]domain.GlobalAPIGame]{
 				Data:    nil,
@@ -70,14 +222,21 @@ func TestGlobalAPIService_Games(t *testing.T) {
 			errContains: "API error",
 		},
 		{
-			name:           "HTTP error status",
+			name:           "HTTP_error_status_500",
 			mockStatusCode: http.StatusInternalServerError,
 			mockResponse:   nil,
 			wantErr:        true,
-			errContains:    "unexpected HTTP status code",
+			errContains:    "unexpected HTTP status code: 500",
 		},
 		{
-			name:           "invalid JSON response",
+			name:           "HTTP_error_status_404",
+			mockStatusCode: http.StatusNotFound,
+			mockResponse:   nil,
+			wantErr:        true,
+			errContains:    "unexpected HTTP status code: 404",
+		},
+		{
+			name:           "invalid_JSON_response",
 			mockStatusCode: http.StatusOK,
 			mockResponse:   "invalid json",
 			wantErr:        true,
