@@ -52,7 +52,7 @@ jobs:
           --health-retries=3
 
       minio:
-        image: minio/minio:latest
+        image: minio/minio:edge-cicd
         env:
           MINIO_ROOT_USER: minioadmin
           MINIO_ROOT_PASSWORD: minioadmin
