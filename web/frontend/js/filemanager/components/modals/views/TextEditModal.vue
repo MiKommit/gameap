@@ -69,6 +69,7 @@ onMounted(() => {
     })
         .then((response) => {
             code.value = response.data
+            editedCode.value = response.data
             codeLoaded.value = true
         })
         .catch(() => {
