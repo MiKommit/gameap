@@ -83,6 +83,11 @@ type Config struct {
 	GlobalAPI struct {
 		URL string `env:"GLOBAL_API_URL" envDefault:"https://api.gameap.com"`
 	}
+
+	Plugins struct {
+		Disabled bool     `env:"PLUGINS_DISABLED" envDefault:"false"`
+		AutoLoad []string `env:"PLUGINS_AUTOLOAD" envDefault:"" envSeparator:","`
+	}
 }
 
 func LoadConfig() (*Config, error) {
