@@ -120,14 +120,16 @@ const rconPort = defineModel('rconPort')
 const serverPortWarning = ref('')
 
 function setPorts() {
+  const gameCode = getExistsPortGameCode();
+
   if (props.initialServerIp === selectedIp.value) {
     serverPort.value = parseInt(props.initialServerPort) || 27015;
-    queryPort.value = parseInt(props.initialQueryPort) || 27015;
-    rconPort.value = parseInt(props.initialRconPort) || 27015;
+
+    queryPort.value = parseInt(props.initialQueryPort) || serverPort.value + PORT_DIFF[gameCode][0];
+    rconPort.value = parseInt(props.initialRconPort) || serverPort.value + PORT_DIFF[gameCode][1];
+
     return
   }
-
-  const gameCode = getExistsPortGameCode();
 
   let portCorrect = -1;
 
