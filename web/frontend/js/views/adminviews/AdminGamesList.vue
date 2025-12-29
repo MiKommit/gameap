@@ -78,7 +78,7 @@
 
 <script setup>
 import GBreadcrumbs from "../../components/GBreadcrumbs.vue"
-import {computed, ref, onMounted, h} from "vue"
+import {computed, ref, onMounted, h, watch} from "vue"
 import {trans} from "../../i18n/i18n"
 import GButton from "../../components/GButton.vue"
 import Loading from "../../components/Loading.vue"
@@ -224,7 +224,16 @@ const pagination = {
   pageSize: 50,
 };
 
-const searchGames = ref('')
+const SEARCH_STORAGE_KEY = 'gameap_games_search'
+const searchGames = ref(sessionStorage.getItem(SEARCH_STORAGE_KEY) || '')
+
+watch(searchGames, (newValue) => {
+  if (newValue) {
+    sessionStorage.setItem(SEARCH_STORAGE_KEY, newValue)
+  } else {
+    sessionStorage.removeItem(SEARCH_STORAGE_KEY)
+  }
+})
 
 const gamesData = computed(() => {
   let result = []
