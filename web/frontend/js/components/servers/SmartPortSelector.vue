@@ -125,8 +125,9 @@ function setPorts() {
   if (props.initialServerIp === selectedIp.value) {
     serverPort.value = parseInt(props.initialServerPort) || 27015;
 
-    queryPort.value = parseInt(props.initialQueryPort) || serverPort.value + PORT_DIFF[gameCode][0];
-    rconPort.value = parseInt(props.initialRconPort) || serverPort.value + PORT_DIFF[gameCode][1];
+    const portDiff = getPortDiff();
+    queryPort.value = parseInt(props.initialQueryPort) || serverPort.value + portDiff[0];
+    rconPort.value = parseInt(props.initialRconPort) || serverPort.value + portDiff[1];
 
     return
   }
@@ -140,14 +141,18 @@ function setPorts() {
 }
 
 function correctPorts() {
-  const gameCode = getExistsPortGameCode();
+  const portDiff = getPortDiff();
 
-  queryPort.value = serverPort.value + PORT_DIFF[gameCode][0];
-  rconPort.value = serverPort.value + PORT_DIFF[gameCode][1];
+  queryPort.value = serverPort.value + portDiff[0];
+  rconPort.value = serverPort.value + portDiff[1];
 }
 
 function getExistsPortGameCode() {
   return DEFAULT_PORTS.hasOwnProperty(gameCode.value) ? gameCode.value : 'default';
+}
+
+function getPortDiff() {
+  return PORT_DIFF[gameCode.value] || PORT_DIFF['default'];
 }
 
 function isBusy(serverIp, serverPort) {
